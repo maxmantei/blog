@@ -119,6 +119,10 @@ disableHugoGeneratorInject = false
   [[params.social]]
     name = "linkedin"
     url  = "https://www.linkedin.com/in/max-mantei/"
+    
+  [[params.social]]
+    name = "xing"
+    url  = "https://www.xing.com/profile/Maximillian_Mantei/cv"
 
   #[[params.social]]
   #  name = "stackoverflow"
