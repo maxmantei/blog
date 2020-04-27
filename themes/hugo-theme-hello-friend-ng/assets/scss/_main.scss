@@ -325,3 +325,28 @@ hr {
 	text-decoration: none;
 	z-index: 100000;
 }
+
+table {
+  width: 90%;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+th, td {
+  padding: 5px;
+}
+
+th {
+  border-bottom: 1px solid $light-border-color;
+  .dark-theme & {
+    border-bottom: 1px solid $dark-border-color;
+  }
+}
+
+tr:hover {
+  background-color: $light-background-secondary;
+  .dark-theme & {
+    background-color: $dark-background-secondary;
+  }
+}

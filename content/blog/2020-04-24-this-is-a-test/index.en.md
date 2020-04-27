@@ -46,3 +46,11 @@ print(4 + 3)
 ## $\LaTeX$
 
 $$y = x^2 + 3x - 5$$
+
+## A Table?
+
+item   | a | b
+-------|---|--
+tomato | 3 | 5
+apple  | 2 | 0
+
