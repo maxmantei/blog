@@ -39,9 +39,16 @@ $$y = x^2 + 3x - 5$$
 
 ## A Table?
 
-item   | a | b
--------|---|--
-tomato | 3 | 5
-apple  | 2 | 0
+|item   | a | b |
+|------:|--:|--:|
+|tomato | 3 | 5 |
+|apple  | 2 | 0 |
+
+
+### now a table?
+
+```{r}
+knitr::kable(data.frame(x = rnorm(3), y = rnorm(3)))
+```
 
 

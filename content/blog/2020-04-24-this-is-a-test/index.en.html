@@ -37,22 +37,48 @@ output:
 <table>
 <thead>
 <tr class="header">
-<th>item</th>
-<th>a</th>
-<th>b</th>
+<th align="right">item</th>
+<th align="right">a</th>
+<th align="right">b</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>tomato</td>
-<td>3</td>
-<td>5</td>
+<td align="right">tomato</td>
+<td align="right">3</td>
+<td align="right">5</td>
 </tr>
 <tr class="even">
-<td>apple</td>
-<td>2</td>
-<td>0</td>
+<td align="right">apple</td>
+<td align="right">2</td>
+<td align="right">0</td>
 </tr>
 </tbody>
 </table>
+<div id="now-a-table" class="section level3">
+<h3>now a table?</h3>
+<pre class="r"><code>knitr::kable(data.frame(x = rnorm(3), y = rnorm(3)))</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="right">x</th>
+<th align="right">y</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">1.6266558</td>
+<td align="right">-0.8267857</td>
+</tr>
+<tr class="even">
+<td align="right">1.1642016</td>
+<td align="right">1.6331396</td>
+</tr>
+<tr class="odd">
+<td align="right">0.4301298</td>
+<td align="right">0.8635443</td>
+</tr>
+</tbody>
+</table>
+</div>
 </div>
