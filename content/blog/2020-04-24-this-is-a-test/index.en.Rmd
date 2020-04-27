@@ -51,4 +51,4 @@ $$y = x^2 + 3x - 5$$
 knitr::kable(data.frame(x = rnorm(3), y = rnorm(3)))
 ```
 
-
+...
