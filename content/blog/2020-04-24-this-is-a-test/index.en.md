@@ -60,13 +60,30 @@ $$y = x^2 + 3x - 5$$
 
 
 ```r
-knitr::kable(data.frame(x = rnorm(3), y = rnorm(3)))
+knitr::kable(data.frame(x = rnorm(3), y = rnorm(3)), align = 'rl', format = "html")
 ```
 
-          x           y
------------  ----------
- -0.0461074   0.5978475
-  0.0938664   0.6402793
-  0.7244898   0.6087686
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:right;"> x </th>
+   <th style="text-align:left;"> y </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:right;"> 0.2174788 </td>
+   <td style="text-align:left;"> 1.2859758 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -0.0862643 </td>
+   <td style="text-align:left;"> -0.2227643 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> -0.0502094 </td>
+   <td style="text-align:left;"> -1.4075758 </td>
+  </tr>
+</tbody>
+</table>
 
 ...

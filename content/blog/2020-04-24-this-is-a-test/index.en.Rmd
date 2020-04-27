@@ -48,7 +48,7 @@ $$y = x^2 + 3x - 5$$
 ### now a table?
 
 ```{r, results='asis'}
-knitr::kable(data.frame(x = rnorm(3), y = rnorm(3)))
+knitr::kable(data.frame(x = rnorm(3), y = rnorm(3)), align = 'rl', format = "html")
 ```
 
 ...
