@@ -10,6 +10,7 @@ images: null
 output: 
   html_document: 
     keep_md: yes
+    theme: null
 ---
 
 
@@ -53,4 +54,5 @@ item   | a | b
 -------|---|--
 tomato | 3 | 5
 apple  | 2 | 0
+
 
