@@ -332,11 +332,14 @@ table {
   margin-right: auto;
 }
 
-th, td {
+td {
   padding: 6px;
+  //min-width: 60px;
 }
 
 th {
+  padding-left: 8px;
+  padding-right: 8px;
   border-bottom: 1px solid $light-border-color;
   .dark-theme & {
     border-bottom: 1px solid $dark-border-color;
