@@ -218,7 +218,7 @@ Working with football data is nice, because the number of goals often match a Po
 $$
 \begin{align}
  G\_i        &\sim \text{Poisson}(\mu\_i) \\
- \log \mu\_i &= \alpha_{t[i]} + \beta_{t[i]} \text{home}\_i + \delta_{m[i]}
+ \log \mu\_i &= \alpha\_{t[i]} + \beta_{t[i]} \text{home}\_i + \delta\_{m[i]}
 \end{align}
 $$
 
