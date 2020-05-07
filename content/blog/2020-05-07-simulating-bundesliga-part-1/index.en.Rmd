@@ -215,10 +215,13 @@ In the following section I will briefly go over the mathematical representation 
 
 Working with football data is nice, because the number of goals often match a Poisson distribution pretty closely. I therefore fit a Poisson Generalized Linear Mixed Model (GLMM) with a log-link function, one binary predictor ``home := (side == "H")``, and two grouping variables (``team`` with index $t$ and ``match_id`` with index $m$). The likelihood for our data (scored goals $G$) can be written like this:
 
-$$\begin{align}
- G_i        &\sim \text{Poisson}(\mu_i) \\
- \log \mu_i &= \alpha_{t[i]} + \beta_{t[i]} \text{home}_i + \delta_{m[i]}
-\end{align}$$
+$$
+\begin{align}
+ G\_i        &\sim \text{Poisson}(\mu\_i) \\
+ \log \mu\_i &= \alpha_{t[i]} + \beta_{t[i]} \text{home}\_i + \delta_{m[i]}
+\end{align}
+$$
+
 
 The coefficient $\alpha$ is the log expected number of goals when $\text{home}=0$, i.e. it measures the expected number of goals when team $t$ plays _not_ at home. When team $t$ _does_ play at home, i.e. $\text{home}=1$, then $\beta$ is the additional effect of playing at home, i.e. the _home advantage_. It is really only an advantage if $\beta>0$, which is a very reasonable assumption -- however, I don't restrict $\beta$ to be positive. 
 
