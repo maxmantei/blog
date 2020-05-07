@@ -215,12 +215,10 @@ In the following section I will briefly go over the mathematical representation 
 
 Working with football data is nice, because the number of goals often match a Poisson distribution pretty closely. I therefore fit a Poisson Generalized Linear Mixed Model (GLMM) with a log-link function, one binary predictor ``home := (side == "H")``, and two grouping variables (``team`` with index $t$ and ``match_id`` with index $m$). The likelihood for our data (scored goals $G$) can be written like this:
 
-$$ 
-\begin{align}
- G_i        &\sim \text{Poisson}(\mu_i) \newline
+$$\begin{align}
+ G_i        &\sim \text{Poisson}(\mu_i) \\
  \log \mu_i &= \alpha_{t[i]} + \beta_{t[i]} \text{home}_i + \delta_{m[i]}
-\end{align}
-$$
+\end{align}$$
 
 The coefficient $\alpha$ is the log expected number of goals when $\text{home}=0$, i.e. it measures the expected number of goals when team $t$ plays _not_ at home. When team $t$ _does_ play at home, i.e. $\text{home}=1$, then $\beta$ is the additional effect of playing at home, i.e. the _home advantage_. It is really only an advantage if $\beta>0$, which is a very reasonable assumption -- however, I don't restrict $\beta$ to be positive. 
 
@@ -228,8 +226,7 @@ The $\delta$ is allowed to vary for each match. This will capture unobserved fac
 
 Since $\alpha$ and $\beta$ are allowed to vary by team and $\delta$ varies by match, we need to add some structure to the model, otherwise we would be horribly overfitting. Here comes the hierarchical part of the model into play.
 
-$$
-\begin{align}
+$$\begin{align}
  \delta_m   &\sim \text{Normal}(0, \sigma_{M}^2) \newline
  \begin{bmatrix}
     \alpha \newline
@@ -239,8 +236,7 @@ $$
       \mu_\alpha \newline 
       \mu_\beta
     \end{bmatrix}, \Sigma  \right)
-\end{align}
-$$
+\end{align}$$
 
 All $\delta_m$ come from the same distribution with common standard deviation $\sigma_M$. Here, $\sigma_M$ is like a hyper-parameter, or tuning parameter which controls the amount of heterogeneity across matches. If $\sigma_M$ is high, we'd expect a high number of very low scoring games, e.g. 0-0, _and_ a high number of high scoring games, e.g 4-5. When $\sigma_M$ is low, the match outcomes will follow the estimated expected goals per team more closely.
 
@@ -248,8 +244,7 @@ Expected goals per team are estimated by $\alpha$ and $\beta$ which come from a 
 
 Now we have to set priors for these hierarchical parameters.
 
-$$
-\begin{align}
+$$\begin{align}
  \mu_\alpha  &\sim \text{Normal}(0.4, 1^2) \newline
  \mu_\beta   &\sim \text{Normal}(0.3, 0.5^2) \newline
  \sigma_M    &\sim \text{Exponential}(1) \newline
@@ -262,8 +257,7 @@ $$
   \end{bmatrix} \newline
  \sigma_\alpha, \sigma_\beta & \sim \text{Exponential}(1) \newline
  \Omega &\sim \text{LKJ}(1)
-\end{align}
-$$
+\end{align}$$
 
 I chose a prior for $\mu_\alpha$ which implies that the median of the team expected goals away from home is roughly $\exp(0.4) \approx 1.5$. This means, I expect half of the teams score less than 1.5 goals on average away from home and half of the teams score more than 1.5 goals, when playing away. The prior on $\mu_\beta$ follows a similar logic. It is set so that $\exp(0.4 + 0.3) \approx 2$ roughly half of the teams playing at home score less than 2 goals on average and the other half scores more than 2 on average when at home.
 
