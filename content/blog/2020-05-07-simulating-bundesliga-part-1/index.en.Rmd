@@ -217,7 +217,7 @@ Working with football data is nice, because the number of goals often match a Po
 
 $$
 \begin{align}
- G\_i        &\sim \text{Poisson}(\mu\_i) \\
+ G\_i        &\sim \text{Poisson}(\mu\_i) \newline
  \log \mu\_i &= \alpha\_{t[i]} + \beta_{t[i]} \text{home}\_i + \delta\_{m[i]}
 \end{align}
 $$
@@ -229,42 +229,46 @@ The $\delta$ is allowed to vary for each match. This will capture unobserved fac
 
 Since $\alpha$ and $\beta$ are allowed to vary by team and $\delta$ varies by match, we need to add some structure to the model, otherwise we would be horribly overfitting. Here comes the hierarchical part of the model into play.
 
-$$\begin{align}
- \delta_m   &\sim \text{Normal}(0, \sigma_{M}^2) \newline
+$$
+\begin{align}
+ \delta\_m   &\sim \text{Normal}(0, \sigma\_{M}^2) \newline
  \begin{bmatrix}
     \alpha \newline
     \beta
-  \end{bmatrix}_t &\sim \text{MultiNormal} \left(
+  \end{bmatrix}\_t &\sim \text{MultiNormal} \left(
     \begin{bmatrix}
-      \mu_\alpha \newline 
-      \mu_\beta
+      \mu\_\alpha \newline 
+      \mu\_\beta
     \end{bmatrix}, \Sigma  \right)
-\end{align}$$
+\end{align}
+$$
 
-All $\delta_m$ come from the same distribution with common standard deviation $\sigma_M$. Here, $\sigma_M$ is like a hyper-parameter, or tuning parameter which controls the amount of heterogeneity across matches. If $\sigma_M$ is high, we'd expect a high number of very low scoring games, e.g. 0-0, _and_ a high number of high scoring games, e.g 4-5. When $\sigma_M$ is low, the match outcomes will follow the estimated expected goals per team more closely.
+All $\delta\_m$ come from the same distribution with common standard deviation $\sigma\_M$. Here, $\sigma\_M$ is like a hyper-parameter, or tuning parameter which controls the amount of heterogeneity across matches. If $\sigma\_M$ is high, we'd expect a high number of very low scoring games, e.g. 0-0, _and_ a high number of high scoring games, e.g 4-5. When $\sigma\_M$ is low, the match outcomes will follow the estimated expected goals per team more closely.
 
-Expected goals per team are estimated by $\alpha$ and $\beta$ which come from a Multivariate Normal distribution. The mean parameters $\mu_\alpha$ and $\mu_\beta$ represent the average of team expected goals away from home ($\mu_\alpha$) and the average of team home advantages ($\mu_\beta$). These effects are allowed to be correlated through the covariance matrix $\Sigma$.
+Expected goals per team are estimated by $\alpha$ and $\beta$ which come from a Multivariate Normal distribution. The mean parameters $\mu\_\alpha$ and $\mu\_\beta$ represent the average of team expected goals away from home ($\mu\_\alpha$) and the average of team home advantages ($\mu\_\beta$). These effects are allowed to be correlated through the covariance matrix $\Sigma$.
 
 Now we have to set priors for these hierarchical parameters.
 
-$$\begin{align}
- \mu_\alpha  &\sim \text{Normal}(0.4, 1^2) \newline
- \mu_\beta   &\sim \text{Normal}(0.3, 0.5^2) \newline
- \sigma_M    &\sim \text{Exponential}(1) \newline
+$$
+\begin{align}
+ \mu\_\alpha  &\sim \text{Normal}(0.4, 1^2) \newline
+ \mu\_\beta   &\sim \text{Normal}(0.3, 0.5^2) \newline
+ \sigma\_M    &\sim \text{Exponential}(1) \newline
  \Sigma      &= \begin{bmatrix}
-    \sigma_\alpha & 0 \newline
-    0 & \sigma_\beta
+    \sigma\_\alpha & 0 \newline
+    0 & \sigma\_\beta
   \end{bmatrix} \Omega \begin{bmatrix}
-    \sigma_\alpha & 0 \newline
-    0 & \sigma_\beta
+    \sigma\_\alpha & 0 \newline
+    0 & \sigma\_\beta
   \end{bmatrix} \newline
- \sigma_\alpha, \sigma_\beta & \sim \text{Exponential}(1) \newline
+ \sigma\_\alpha, \sigma\_\beta & \sim \text{Exponential}(1) \newline
  \Omega &\sim \text{LKJ}(1)
-\end{align}$$
+\end{align}
+$$
 
-I chose a prior for $\mu_\alpha$ which implies that the median of the team expected goals away from home is roughly $\exp(0.4) \approx 1.5$. This means, I expect half of the teams score less than 1.5 goals on average away from home and half of the teams score more than 1.5 goals, when playing away. The prior on $\mu_\beta$ follows a similar logic. It is set so that $\exp(0.4 + 0.3) \approx 2$ roughly half of the teams playing at home score less than 2 goals on average and the other half scores more than 2 on average when at home.
+I chose a prior for $\mu\_\alpha$ which implies that the median of the team expected goals away from home is roughly $\exp(0.4) \approx 1.5$. This means, I expect half of the teams score less than 1.5 goals on average away from home and half of the teams score more than 1.5 goals, when playing away. The prior on $\mu\_\beta$ follows a similar logic. It is set so that $\exp(0.4 + 0.3) \approx 2$ roughly half of the teams playing at home score less than 2 goals on average and the other half scores more than 2 on average when at home.
 
-All other priors are ``rstanarm`` defaults -- I think in reality ``rstanarm`` does something a little more complex, but this should _essentially_ be what's going on: The standard deviations $\sigma_M, \sigma_\alpha, \sigma_\beta$ control the variability of the corresponding hierarchical parameters $\delta, \alpha, \beta$. Their Exponential(1) priors are most likely too wide, but it's better to err on the side of flexibility here.
+All other priors are ``rstanarm`` defaults -- I think in reality ``rstanarm`` does something a little more complex, but this should _essentially_ be what's going on: The standard deviations $\sigma\_M, \sigma\_\alpha, \sigma\_\beta$ control the variability of the corresponding hierarchical parameters $\delta, \alpha, \beta$. Their Exponential(1) priors are most likely too wide, but it's better to err on the side of flexibility here.
 
 The correlation matrix $\Omega$ is given a LKJ(1) prior which is uniform in $(-1,1)$. The correlation between $\alpha$ and $\beta$ could be positive, since I'd reckon that good teams (high $\alpha$) play even better at home (high $\beta$). On the other hand, bad teams (low $\alpha$) could follow the strategy to just play good at home (high $\beta$) and don't care so much about winning away matches which would imply a negative correlation. I guess the uniform prior is fine.
 
@@ -316,7 +320,7 @@ This summary should be looking familiar to anyone, who used the ``lme4`` package
 
 The posterior median for $\alpha$ is 0.4. That's really close to my prior belief! I'm a bit surprised -- although, I probably shouldn't be, but that's a different and more philosophical debate. The posterior median for $\beta$ is quite a bit lower than my prior belief. $\beta$ is mostly positive though, so there _is_ a measurable home advantage. 
 
-Match heterogeneity denoted by $\delta$ in our model has a very low spread with the posterior median of $\sigma_M$ being 0.077. Variability across teams in $\sigma_\alpha$ (median = 0.25) and $\sigma_\beta$ (median = 0.20) is more prominent. However, I think it's not surprising to find team differences.
+Match heterogeneity denoted by $\delta$ in our model has a very low spread with the posterior median of $\sigma\_M$ being 0.077. Variability across teams in $\sigma\_\alpha$ (median = 0.25) and $\sigma\_\beta$ (median = 0.20) is more prominent. However, I think it's not surprising to find team differences.
 
 Finally, we see that the correlation between scoring goals (away) and home advantage is positive (0.16): Better teams are expected to have an even bigger home advantage. This can also be seen when we plot the median expected goals for home and way matches of each team implied by the model. 
 
@@ -344,7 +348,7 @@ coef(poisson_glmm)$team %>%
 
 If a team lies on the dashed diagonal line, it's expected goals will be the same in home and away matches. Teams that lie above the dashed line are expected to score more goals at home than away. 
 
-The home advantage is seen for nearly every team (except for Werder Bremen, who really struggled at home this season). We can also see that the cloud of points is tilted slightly above the 45 degree line. This is due to the positive correlation between $\alpha_t$ and $\beta_t$ in the model above: Dortmund, Bayern Munich, and RB Leipzig are expected to score more away goals than other teams and even more home goals relative to other teams. Low scoring teams such as Fortuna Düsseldorf, Werder Bremen, and Paderborn on the other hand do not have a strong home advantage -- Werder Bremen even has a slight home _disadvantage_.
+The home advantage is seen for nearly every team (except for Werder Bremen, who really struggled at home this season). We can also see that the cloud of points is tilted slightly above the 45 degree line. This is due to the positive correlation between $\alpha\_t$ and $\beta\_t$ in the model above: Dortmund, Bayern Munich, and RB Leipzig are expected to score more away goals than other teams and even more home goals relative to other teams. Low scoring teams such as Fortuna Düsseldorf, Werder Bremen, and Paderborn on the other hand do not have a strong home advantage -- Werder Bremen even has a slight home _disadvantage_.
 
 Since we estimated a full Bayesian model, we have complete quantification of uncertainty for all the parameters in the model. Instead of looking just at the medians, we can inspect the whole posterior expected goal distribution for each team. 
 
