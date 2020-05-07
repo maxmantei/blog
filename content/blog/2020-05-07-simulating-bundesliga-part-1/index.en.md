@@ -416,8 +416,8 @@ Working with football data is nice, because the number of goals often match a Po
 
 $$
 \begin{align}
- G\_i        &\sim \text{Poisson}(\mu\_i) \\
- \log \mu\_i &= \alpha_{t[i]} + \beta_{t[i]} \text{home}\_i + \delta_{m[i]}
+ G_i        &\sim \text{Poisson}(\mu\_i) \newline
+ \log \mu\_i &= \alpha\_{t[i]} + \beta\_{t[i]} \text{home}\_i + \delta\_{m[i]}
 \end{align}
 $$
 
@@ -442,7 +442,7 @@ $$\begin{align}
 
 All $\delta_m$ come from the same distribution with common standard deviation $\sigma_M$. Here, $\sigma_M$ is like a hyper-parameter, or tuning parameter which controls the amount of heterogeneity across matches. If $\sigma_M$ is high, we'd expect a high number of very low scoring games, e.g. 0-0, _and_ a high number of high scoring games, e.g 4-5. When $\sigma_M$ is low, the match outcomes will follow the estimated expected goals per team more closely.
 
-Expected goals per team are estimated by $\alpha$ and $\beta$ which come from a Multivariate Normal distribution. The mean parameters $\mu_\alpha$ and $\mu_\beta$ represent the average of team expected goals away from home ($\mu_\alpha$) and the average of team home advantages ($\mu_\beta$). These effects are allowed to be correlated through the covariance matrix $\Sigma$.
+Expected goals per team are estimated by $\alpha$ and $\beta$ which come from a Multivariate Normal distribution. The mean parameters $\mu\_\alpha$ and $\mu\_\beta$ represent the average of team expected goals away from home ($\mu_\alpha$) and the average of team home advantages ($\mu_\beta$). These effects are allowed to be correlated through the covariance matrix $\Sigma$.
 
 Now we have to set priors for these hierarchical parameters.
 
