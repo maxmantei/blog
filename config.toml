@@ -159,7 +159,7 @@ unsafe= true
     anonymizeIP = true
     disable = false
     respectDoNotTrack = true
-    useSessionStorage = false
+    useSessionStorage = true
   [privacy.instagram]
     disable = true
     simple = false
