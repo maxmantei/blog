@@ -526,8 +526,8 @@ sideH       0.1    0.1
 Error terms:
  Groups   Name        Std.Dev. Corr
  match_id (Intercept) 0.076        
- team     (Intercept) 0.248        
-          sideH       0.203    0.15
+ team     (Intercept) 0.251        
+          sideH       0.201    0.17
 Num. levels: match_id 224, team 18 
 
 ------
@@ -583,37 +583,37 @@ pp
 
 ```
      1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28
-[1,] 0 4 2 1 1 1 1 4 2  2  6  3  1  2  2  1  5  1  0  4  3  2  3  1  2  1  1  1
-[2,] 2 2 1 0 3 1 1 3 0  2  5  0  2  0  2  0  1  2  1  2  6  1  5  3  0  2  2  1
-[3,] 2 2 1 2 2 3 3 3 3  0  1  1  2  0  4  2  2  2  5  2  4  2  2  1  2  0  5  2
+[1,] 0 3 3 3 3 0 1 4 3  1  5  0  2  1  6  0  2  1  2  2  1  0  6  2  5  1  2  1
+[2,] 0 2 2 1 3 1 3 3 1  2  2  0  1  1  6  3  2  4  4  1  2  2  6  2  4  6  2  1
+[3,] 0 1 3 1 3 5 1 1 3  6  2  2  0  3  6  1  4  1  2  0  1  2  2  2  4  3  0  4
      29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53
-[1,]  3  1  3  1  2  0  1  1  2  1  4  0  1  3  1  1  2  2  1  2  0  1  2  4  2
-[2,]  1  0  3  2  2  2  4  5  1  3  2  0  4  2  2  1  2  1  1  1  2  2  1  2  3
-[3,]  2  1  5  2  2  1  2  2  3  2  2  0  2  3  0  2  3  3  2  2  6  3  4  2  1
+[1,]  5  0  6  0  2  1  0  1  3  0  3  3  0  1  1  2  1  4  3  0  2  1  1  2  3
+[2,]  4  0  2  2  7  1  4  4  0  3  2  1  3  1  1  1  2  2  5  1  1  3  2  4  1
+[3,]  2  3  4  4  3  1  1  3  0  0  0  0  1  2  2  2  1  2  1  2  0  0  2  3  0
      54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78
-[1,]  1  2  0  0  2  0  0  2  1  0  0  1  2  1  4  0  0  1  3  1  4  2  0  0  1
-[2,]  1  1  2  0  2  2  1  2  4  1  2  1  1  3  0  0  1  3  2  0  2  1  1  3  4
-[3,]  1  3  2  1  1  2  2  2  2  2  5  0  1  1  3  2  1  1  1  2  0  3  1  4  1
+[1,]  2  2  2  2  2  1  1  2  3  1  2  4  2  1  0  2  1  1  0  3  5  0  4  3  0
+[2,]  0  0  1  3  4  4  1  2  2  0  1  1  1  0  1  1  1  1  1  1  2  0  3  0  5
+[3,]  1  1  3  3  2  3  2  5  0  0  0  1  2  1  0  1  2  0  1  0  2  0  0  1  1
      79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102
-[1,]  2  0  2  3  2  1  3  1  2  1  3  0  3  3  2  2  2  1  4  1  5   2   2   1
-[2,]  2  4  0  1  2  1  2  5  1  2  3  3  0  2  3  2  2  5  1  1  2   0   1   2
-[3,]  5  2  3  2  1  3  2  1  3  2  0  2  1  0  1  1  1  2  4  2  2   2   2   2
+[1,]  0  1  0  4  3  2  1  5  1  0  1  2  0  2  2  0  0  0  3  0  2   0   1   1
+[2,]  1  0  1  0  4  2  4  4  1  3  3  1  2  3  3  1  2  2  4  1  3   2   3   2
+[3,]  2  0  0  1  1  1  1  4  0  4  2  0  0  2  3  1  0  0  1  1  0   1   2   1
      103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120
-[1,]   3   3   4   2   3   3   0   1   3   0   1   0   4   2   4   2   2   0
-[2,]   1   3   0   3   0   1   3   1   3   1   1   2   2   3   1   1   3   0
-[3,]   6   1   1   1   0   0   4   1   4   2   0   4   2   4   4   0   2   2
+[1,]   5   1   1   3   3   1   2   4   0   2   0   1   1   2   2   1   1   2
+[2,]   1   0   2   3   1   2   2   1   3   2   1   1   0   2   6   1   4   2
+[3,]   1   1   1   1   0   0   1   2   2   5   1   1   0   2   1   1   1   4
      121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138
-[1,]   2   2   2   1   2   1   3   3   3   0   0   1   2   1   1   3   2   1
-[2,]   1   0   3   2   1   2   1   0   2   3   0   0   3   0   3   3   3   0
-[3,]   3   2   4   0   6   2   3   1   1   2   0   1   1   4   4   3   4   1
+[1,]   2   1   4   0   4   2   1   0   4   2   1   0   3   2   0   2   0   0
+[2,]   4   0   2   1   0   0   0   1   1   1   4   0   2   0   1   2   1   0
+[3,]   3   1   4   2   1   0   1   2   3   1   2   2   2   2   1   3   1   2
      139 140 141 142 143 144 145 146 147 148 149 150 151 152 153 154 155 156
-[1,]   0   3   0   2   2   2   1   1   0   2   4   0   1   1   0   2   0   1
-[2,]   2   0   1   0   1   2   1   3   1   0   2   1   2   0   2   4   2   2
-[3,]   0   6   3   1   2   2   2   2   2   1   2   4   0   0   0   2   1   4
+[1,]   3   1   0   1   3   2   0   3   2   1   0   3   4   1   0   2   1   1
+[2,]   0   2   1   1   0   1   2   4   4   1   3   1   1   2   0   2   2   1
+[3,]   0   1   2   0   3   3   1   4   4   2   0   4   0   4   1   0   1   1
      157 158 159 160 161 162 163 164
-[1,]   1   4   3   3   0   1   2   0
-[2,]   2   3   0   2   0   0   0   4
-[3,]   1   3   1   2   1   1   1   0
+[1,]   1   3   4   0   1   0   2   3
+[2,]   1   2   0   4   3   0   2   0
+[3,]   3   1   0   3   0   0   1   0
 attr(,"class")
 [1] "ppd"    "matrix" "array" 
 ```
@@ -705,10 +705,10 @@ map_df(1:n_sims, ~ gen_dataset(.) %>% tail(2))
 # A tibble: 6 x 8
   Date       FTR   match_id side  team          G    GA   sim
   <date>     <chr>    <int> <chr> <fct>     <dbl> <dbl> <int>
-1 NA         H          306 H     Wolfsburg     2     0     1
-2 NA         H          306 A     Freiburg      0     2     1
-3 NA         A          306 H     Wolfsburg     0     4     2
-4 NA         A          306 A     Freiburg      4     0     2
+1 NA         A          306 H     Wolfsburg     2     3     1
+2 NA         A          306 A     Freiburg      3     2     1
+3 NA         H          306 H     Wolfsburg     2     0     2
+4 NA         H          306 A     Freiburg      0     2     2
 5 NA         H          306 H     Wolfsburg     1     0     3
 6 NA         H          306 A     Freiburg      0     1     3
 ```
@@ -744,16 +744,16 @@ sim_tables
 # A tibble: 72,000 x 8
    sim     pos team          played   pts     G    GA    GD
    <chr> <int> <fct>          <int> <dbl> <dbl> <dbl> <dbl>
- 1 1         1 Bayern Munich     34    68    95    43    52
- 2 1         2 RB Leipzig        34    68    85    38    47
- 3 1         3 Dortmund          34    66    87    44    43
- 4 1         4 Leverkusen        34    62    62    44    18
- 5 1         5 M'gladbach        34    61    64    45    19
- 6 1         6 Schalke 04        34    51    47    50    -3
- 7 1         7 FC Koln           34    50    62    58     4
- 8 1         8 Freiburg          34    49    49    52    -3
- 9 1         9 Wolfsburg         34    48    46    49    -3
-10 1        10 Mainz             34    42    48    61   -13
+ 1 1         1 Dortmund          34    78    95    35    60
+ 2 1         2 Bayern Munich     34    73   100    44    56
+ 3 1         3 RB Leipzig        34    72    83    36    47
+ 4 1         4 M'gladbach        34    64    67    47    20
+ 5 1         5 Leverkusen        34    62    66    49    17
+ 6 1         6 Hoffenheim        34    50    48    57    -9
+ 7 1         7 Freiburg          34    47    46    49    -3
+ 8 1         8 Wolfsburg         34    46    50    53    -3
+ 9 1         9 Schalke 04        34    46    42    49    -7
+10 1        10 FC Koln           34    44    52    59    -7
 # ... with 71,990 more rows
 ```
 
@@ -790,9 +790,9 @@ Since these are valid probabilities, we can add them up for each interesting par
 <tbody>
   <tr>
    <td style="text-align:right;"> Bayern Munich </td>
-   <td style="text-align:center;width: 5em; "> 66 </td>
+   <td style="text-align:center;width: 5em; "> 67 </td>
    <td style="text-align:center;width: 5em; "> 99 </td>
-   <td style="text-align:center;width: 5em; "> 1 </td>
+   <td style="text-align:center;width: 5em; "> 0 </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
@@ -800,7 +800,7 @@ Since these are valid probabilities, we can add them up for each interesting par
   <tr>
    <td style="text-align:right;"> Dortmund </td>
    <td style="text-align:center;width: 5em; "> 20 </td>
-   <td style="text-align:center;width: 5em; "> 97 </td>
+   <td style="text-align:center;width: 5em; "> 96 </td>
    <td style="text-align:center;width: 5em; "> 3 </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
@@ -809,25 +809,25 @@ Since these are valid probabilities, we can add them up for each interesting par
   <tr>
    <td style="text-align:right;"> RB Leipzig </td>
    <td style="text-align:center;width: 5em; "> 10 </td>
-   <td style="text-align:center;width: 5em; "> 93 </td>
-   <td style="text-align:center;width: 5em; "> 6 </td>
+   <td style="text-align:center;width: 5em; "> 94 </td>
+   <td style="text-align:center;width: 5em; "> 7 </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
   </tr>
   <tr>
    <td style="text-align:right;"> M'gladbach </td>
-   <td style="text-align:center;width: 5em; "> 3 </td>
-   <td style="text-align:center;width: 5em; "> 72 </td>
-   <td style="text-align:center;width: 5em; "> 29 </td>
+   <td style="text-align:center;width: 5em; "> 2 </td>
+   <td style="text-align:center;width: 5em; "> 71 </td>
+   <td style="text-align:center;width: 5em; "> 28 </td>
    <td style="text-align:center;width: 5em; "> 0 </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
   </tr>
   <tr>
    <td style="text-align:right;"> Leverkusen </td>
-   <td style="text-align:center;width: 5em; "> 0 </td>
-   <td style="text-align:center;width: 5em; "> 38 </td>
+   <td style="text-align:center;width: 5em; "> 1 </td>
+   <td style="text-align:center;width: 5em; "> 39 </td>
    <td style="text-align:center;width: 5em; "> 61 </td>
    <td style="text-align:center;width: 5em; "> 0 </td>
    <td style="text-align:center;width: 5em; ">  </td>
@@ -846,9 +846,9 @@ Since these are valid probabilities, we can add them up for each interesting par
    <td style="text-align:right;"> Wolfsburg </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
-   <td style="text-align:center;width: 5em; "> 38 </td>
-   <td style="text-align:center;width: 5em; "> 62 </td>
-   <td style="text-align:center;width: 5em; ">  </td>
+   <td style="text-align:center;width: 5em; "> 37 </td>
+   <td style="text-align:center;width: 5em; "> 63 </td>
+   <td style="text-align:center;width: 5em; "> 0 </td>
    <td style="text-align:center;width: 5em; ">  </td>
   </tr>
   <tr>
@@ -857,15 +857,15 @@ Since these are valid probabilities, we can add them up for each interesting par
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; "> 37 </td>
    <td style="text-align:center;width: 5em; "> 63 </td>
-   <td style="text-align:center;width: 5em; "> 0 </td>
+   <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
   </tr>
   <tr>
    <td style="text-align:right;"> Hoffenheim </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
-   <td style="text-align:center;width: 5em; "> 31 </td>
-   <td style="text-align:center;width: 5em; "> 69 </td>
+   <td style="text-align:center;width: 5em; "> 30 </td>
+   <td style="text-align:center;width: 5em; "> 70 </td>
    <td style="text-align:center;width: 5em; "> 0 </td>
    <td style="text-align:center;width: 5em; ">  </td>
   </tr>
@@ -873,10 +873,10 @@ Since these are valid probabilities, we can add them up for each interesting par
    <td style="text-align:right;"> FC Koln </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
-   <td style="text-align:center;width: 5em; "> 22 </td>
-   <td style="text-align:center;width: 5em; "> 78 </td>
+   <td style="text-align:center;width: 5em; "> 23 </td>
+   <td style="text-align:center;width: 5em; "> 77 </td>
    <td style="text-align:center;width: 5em; "> 0 </td>
-   <td style="text-align:center;width: 5em; "> 0 </td>
+   <td style="text-align:center;width: 5em; ">  </td>
   </tr>
   <tr>
    <td style="text-align:right;"> Ein Frankfurt </td>
@@ -892,7 +892,7 @@ Since these are valid probabilities, we can add them up for each interesting par
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; "> 6 </td>
-   <td style="text-align:center;width: 5em; "> 92 </td>
+   <td style="text-align:center;width: 5em; "> 93 </td>
    <td style="text-align:center;width: 5em; "> 2 </td>
    <td style="text-align:center;width: 5em; "> 0 </td>
   </tr>
@@ -900,17 +900,17 @@ Since these are valid probabilities, we can add them up for each interesting par
    <td style="text-align:right;"> Augsburg </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
-   <td style="text-align:center;width: 5em; "> 4 </td>
+   <td style="text-align:center;width: 5em; "> 3 </td>
    <td style="text-align:center;width: 5em; "> 91 </td>
-   <td style="text-align:center;width: 5em; "> 4 </td>
-   <td style="text-align:center;width: 5em; "> 2 </td>
+   <td style="text-align:center;width: 5em; "> 5 </td>
+   <td style="text-align:center;width: 5em; "> 1 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> Hertha </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; "> 1 </td>
-   <td style="text-align:center;width: 5em; "> 87 </td>
+   <td style="text-align:center;width: 5em; "> 88 </td>
    <td style="text-align:center;width: 5em; "> 9 </td>
    <td style="text-align:center;width: 5em; "> 2 </td>
   </tr>
@@ -920,17 +920,17 @@ Since these are valid probabilities, we can add them up for each interesting par
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; "> 0 </td>
    <td style="text-align:center;width: 5em; "> 79 </td>
-   <td style="text-align:center;width: 5em; "> 15 </td>
-   <td style="text-align:center;width: 5em; "> 7 </td>
+   <td style="text-align:center;width: 5em; "> 14 </td>
+   <td style="text-align:center;width: 5em; "> 6 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> Fortuna Dusseldorf </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
    <td style="text-align:center;width: 5em; ">  </td>
-   <td style="text-align:center;width: 5em; "> 25 </td>
-   <td style="text-align:center;width: 5em; "> 34 </td>
-   <td style="text-align:center;width: 5em; "> 41 </td>
+   <td style="text-align:center;width: 5em; "> 24 </td>
+   <td style="text-align:center;width: 5em; "> 35 </td>
+   <td style="text-align:center;width: 5em; "> 40 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> Werder Bremen </td>
@@ -961,7 +961,7 @@ The CL spots are very likely going to the top four teams. Only Bayer Leverkusen 
 
 The Europa League will be the most contested place in the table. More than a handful of teams have a realistic chance to grab one of these spots, but they will most likely go to Leverkusen, Schalke, and Wolfsburg, leaving Freiburg and Hoffenheim close behind.
 
-When the Bundesliga shut down due to the Covid-19 crisis, it was not really clear if the 2019/2020 season would be finished at all. I was asking myself, who would be in favor of stopping the season and who would be in favor of playing on? (Setting aside all valid health concerns, the monetary incentive to play a match, and any special rules like no-relegation in case of stopping the season, of course.) The question mainly boils down to: _If the season were to continue, would my team be expected to finish higher up the table, or lower?_
+When the Bundesliga shut down due to the Covid-19 crisis, it was not really clear if the 2019//2020 season would be finished at all. I was asking myself, who would be in favor of stopping the season and who would be in favor of playing on? (Setting aside all valid health concerns, the monetary incentive to play a match, and any special rules like no-relegation in case of stopping the season, of course.) The question mainly boils down to: _If the season were to continue, would my team be expected to finish higher up the table, or lower?_
 
 <table>
  <thead>
@@ -977,128 +977,128 @@ When the Bundesliga shut down due to the Covid-19 crisis, it was not really clea
   <tr>
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:left;"> Bayern Munich </td>
-   <td style="text-align:right;width: 4em; "> 66.4 </td>
-   <td style="text-align:right;width: 4em; "> 33.6 </td>
+   <td style="text-align:right;width: 4em; "> 67.1 </td>
+   <td style="text-align:right;width: 4em; "> 32.9 </td>
    <td style="text-align:right;width: 4em; "> 0.0 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 2 </td>
    <td style="text-align:left;"> Dortmund </td>
-   <td style="text-align:right;width: 4em; "> 38.6 </td>
-   <td style="text-align:right;width: 4em; "> 41.2 </td>
-   <td style="text-align:right;width: 4em; "> 20.2 </td>
+   <td style="text-align:right;width: 4em; "> 37.9 </td>
+   <td style="text-align:right;width: 4em; "> 41.6 </td>
+   <td style="text-align:right;width: 4em; "> 20.5 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 3 </td>
    <td style="text-align:left;"> RB Leipzig </td>
-   <td style="text-align:right;width: 4em; "> 33.9 </td>
-   <td style="text-align:right;width: 4em; "> 26.8 </td>
-   <td style="text-align:right;width: 4em; "> 39.2 </td>
+   <td style="text-align:right;width: 4em; "> 34.1 </td>
+   <td style="text-align:right;width: 4em; "> 25.5 </td>
+   <td style="text-align:right;width: 4em; "> 40.4 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 4 </td>
    <td style="text-align:left;"> M'gladbach </td>
-   <td style="text-align:right;width: 4em; "> 39.9 </td>
-   <td style="text-align:right;width: 4em; "> 28.6 </td>
-   <td style="text-align:right;width: 4em; "> 31.5 </td>
+   <td style="text-align:right;width: 4em; "> 40.9 </td>
+   <td style="text-align:right;width: 4em; "> 28.2 </td>
+   <td style="text-align:right;width: 4em; "> 30.9 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 5 </td>
    <td style="text-align:left;"> Leverkusen </td>
-   <td style="text-align:right;width: 4em; "> 57.5 </td>
-   <td style="text-align:right;width: 4em; "> 4.1 </td>
-   <td style="text-align:right;width: 4em; "> 38.5 </td>
+   <td style="text-align:right;width: 4em; "> 57.3 </td>
+   <td style="text-align:right;width: 4em; "> 4.3 </td>
+   <td style="text-align:right;width: 4em; "> 38.4 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 6 </td>
    <td style="text-align:left;"> Schalke 04 </td>
-   <td style="text-align:right;width: 4em; "> 28.9 </td>
-   <td style="text-align:right;width: 4em; "> 69.2 </td>
-   <td style="text-align:right;width: 4em; "> 2.0 </td>
+   <td style="text-align:right;width: 4em; "> 27.4 </td>
+   <td style="text-align:right;width: 4em; "> 70.8 </td>
+   <td style="text-align:right;width: 4em; "> 1.8 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 7 </td>
    <td style="text-align:left;"> Wolfsburg </td>
-   <td style="text-align:right;width: 4em; "> 17.8 </td>
-   <td style="text-align:right;width: 4em; "> 62.4 </td>
+   <td style="text-align:right;width: 4em; "> 17.5 </td>
+   <td style="text-align:right;width: 4em; "> 62.6 </td>
    <td style="text-align:right;width: 4em; "> 19.8 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 8 </td>
    <td style="text-align:left;"> Freiburg </td>
-   <td style="text-align:right;width: 4em; "> 16.7 </td>
-   <td style="text-align:right;width: 4em; "> 46.4 </td>
-   <td style="text-align:right;width: 4em; "> 37.0 </td>
+   <td style="text-align:right;width: 4em; "> 16.6 </td>
+   <td style="text-align:right;width: 4em; "> 46.1 </td>
+   <td style="text-align:right;width: 4em; "> 37.3 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 9 </td>
    <td style="text-align:left;"> Hoffenheim </td>
-   <td style="text-align:right;width: 4em; "> 15.4 </td>
-   <td style="text-align:right;width: 4em; "> 38.0 </td>
-   <td style="text-align:right;width: 4em; "> 46.6 </td>
+   <td style="text-align:right;width: 4em; "> 15.3 </td>
+   <td style="text-align:right;width: 4em; "> 37.6 </td>
+   <td style="text-align:right;width: 4em; "> 47.1 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 10 </td>
    <td style="text-align:left;"> FC Koln </td>
-   <td style="text-align:right;width: 4em; "> 13.7 </td>
-   <td style="text-align:right;width: 4em; "> 36.5 </td>
-   <td style="text-align:right;width: 4em; "> 49.8 </td>
+   <td style="text-align:right;width: 4em; "> 14.2 </td>
+   <td style="text-align:right;width: 4em; "> 35.9 </td>
+   <td style="text-align:right;width: 4em; "> 49.9 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 11 </td>
    <td style="text-align:left;"> Union Berlin </td>
-   <td style="text-align:right;width: 4em; "> 14.8 </td>
-   <td style="text-align:right;width: 4em; "> 53.3 </td>
-   <td style="text-align:right;width: 4em; "> 32.0 </td>
+   <td style="text-align:right;width: 4em; "> 15.3 </td>
+   <td style="text-align:right;width: 4em; "> 54.5 </td>
+   <td style="text-align:right;width: 4em; "> 30.2 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 12 </td>
    <td style="text-align:left;"> Ein Frankfurt </td>
-   <td style="text-align:right;width: 4em; "> 15.1 </td>
-   <td style="text-align:right;width: 4em; "> 24.9 </td>
-   <td style="text-align:right;width: 4em; "> 60.0 </td>
+   <td style="text-align:right;width: 4em; "> 12.9 </td>
+   <td style="text-align:right;width: 4em; "> 26.0 </td>
+   <td style="text-align:right;width: 4em; "> 61.1 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 13 </td>
    <td style="text-align:left;"> Hertha </td>
-   <td style="text-align:right;width: 4em; "> 15.7 </td>
-   <td style="text-align:right;width: 4em; "> 58.0 </td>
-   <td style="text-align:right;width: 4em; "> 26.3 </td>
+   <td style="text-align:right;width: 4em; "> 15.4 </td>
+   <td style="text-align:right;width: 4em; "> 58.8 </td>
+   <td style="text-align:right;width: 4em; "> 25.8 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 14 </td>
    <td style="text-align:left;"> Augsburg </td>
-   <td style="text-align:right;width: 4em; "> 16.4 </td>
-   <td style="text-align:right;width: 4em; "> 18.0 </td>
-   <td style="text-align:right;width: 4em; "> 65.5 </td>
+   <td style="text-align:right;width: 4em; "> 16.3 </td>
+   <td style="text-align:right;width: 4em; "> 17.6 </td>
+   <td style="text-align:right;width: 4em; "> 66.0 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 15 </td>
    <td style="text-align:left;"> Mainz </td>
-   <td style="text-align:right;width: 4em; "> 28.5 </td>
-   <td style="text-align:right;width: 4em; "> 21.1 </td>
-   <td style="text-align:right;width: 4em; "> 50.4 </td>
+   <td style="text-align:right;width: 4em; "> 27.6 </td>
+   <td style="text-align:right;width: 4em; "> 20.9 </td>
+   <td style="text-align:right;width: 4em; "> 51.6 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 16 </td>
    <td style="text-align:left;"> Fortuna Dusseldorf </td>
-   <td style="text-align:right;width: 4em; "> 34.1 </td>
-   <td style="text-align:right;width: 4em; "> 40.5 </td>
-   <td style="text-align:right;width: 4em; "> 25.4 </td>
+   <td style="text-align:right;width: 4em; "> 35.3 </td>
+   <td style="text-align:right;width: 4em; "> 40.4 </td>
+   <td style="text-align:right;width: 4em; "> 24.3 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 17 </td>
    <td style="text-align:left;"> Werder Bremen </td>
-   <td style="text-align:right;width: 4em; "> 35.7 </td>
-   <td style="text-align:right;width: 4em; "> 28.8 </td>
-   <td style="text-align:right;width: 4em; "> 35.4 </td>
+   <td style="text-align:right;width: 4em; "> 36.4 </td>
+   <td style="text-align:right;width: 4em; "> 28.3 </td>
+   <td style="text-align:right;width: 4em; "> 35.2 </td>
   </tr>
   <tr>
    <td style="text-align:right;"> 18 </td>
    <td style="text-align:left;"> Paderborn </td>
-   <td style="text-align:right;width: 4em; "> 57.9 </td>
+   <td style="text-align:right;width: 4em; "> 58.4 </td>
    <td style="text-align:right;width: 4em; "> 0.0 </td>
-   <td style="text-align:right;width: 4em; "> 42.1 </td>
+   <td style="text-align:right;width: 4em; "> 41.6 </td>
   </tr>
 </tbody>
 </table>
