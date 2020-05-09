@@ -570,7 +570,7 @@ The CL spots are very likely going to the top four teams. Only Bayer Leverkusen 
 
 The Europa League will be the most contested place in the table. More than a handful of teams have a realistic chance to grab one of these spots, but they will most likely go to Leverkusen, Schalke, and Wolfsburg, leaving Freiburg and Hoffenheim close behind.
 
-When the Bundesliga shut down due to the Covid-19 crisis, it was not really clear if the 2019//2020 season would be finished at all. I was asking myself, who would be in favor of stopping the season and who would be in favor of playing on? (Setting aside all valid health concerns, the monetary incentive to play a match, and any special rules like no-relegation in case of stopping the season, of course.) The question mainly boils down to: _If the season were to continue, would my team be expected to finish higher up the table, or lower?_
+When the Bundesliga shut down due to the Covid-19 crisis, it was not really clear if the 2019 / 2020 season would be finished at all. I was asking myself, who would be in favor of stopping the season and who would be in favor of playing on? (Setting aside all valid health concerns, the monetary incentive to play a match, and any special rules like no-relegation in case of stopping the season, of course.) The question mainly boils down to: _If the season were to continue, would my team be expected to finish higher up the table, or lower?_
 
 ```{r, table-relative, results='asis', echo = FALSE}
 
