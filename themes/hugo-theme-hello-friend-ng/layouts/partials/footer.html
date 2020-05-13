@@ -3,7 +3,7 @@
         <div class="footer__content">
             <span>&copy; {{ now.Format "2006" }}</span>
             {{ if .Site.Author.name }}
-                <span><a href='about/'>{{ .Site.Author.name }}</a></span>
+                <span><a href='{{ "about/" | absURL }}'>{{ .Site.Author.name }}</a></span>
             {{ end }}
             <span><a href='terms/'>Terms and Policies</a></span>
             <span>{{ .Site.Copyright| safeHTML }}</span>
