@@ -15,7 +15,7 @@ rssLimit  = 10  # Maximum number of items in the RSS feed.
 copyright = "This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License." # This message is only used by the RSS template.
 
 googleAnalytics = "UA-164799772-1"
-# disqusShortname = ""
+disqusShortname = "maxmantei"
 
 archetypeDir = "archetypes"
 contentDir   = "content"
@@ -150,11 +150,11 @@ disableHugoGeneratorInject = false
     url        = "blog/"
     
 [markup.goldmark.renderer]
-unsafe= true
+unsafe = true
 
 [privacy]
   [privacy.disqus]
-    disable = true
+    disable = false
   [privacy.googleAnalytics]
     anonymizeIP = true
     disable = false

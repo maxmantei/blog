@@ -1,11 +1,11 @@
 ---
 aliases:
-- about-us
-- about-hugo
+- about
+- about-me
 - contact
 author:
-  name: Hugo Authors
-date: "2014-04-09"
+  name: Max Mantei
+date: "2020-05-12"
 title: About Me
 ---
 
