@@ -68,12 +68,6 @@ mingw32-make --version
 
 {{< image src="win10-rt40-make.png" alt="win10-rt40-make" position="center" style="border-radius: 3px;" >}}
 
-```
-curl --version
-```
-
-{{< image src="win10-rt40-curl.png" alt="win10-rt40-curl" position="center" style="border-radius: 3px;" >}}
-
 If all of them return output containing a version number and are not pointing to the Anaconda distribution (if installed), you should be good to go.
 
 You can now open RStudio and run 
@@ -104,7 +98,6 @@ To see if everything is set up correctly you can run the follwing four lines one
 g++ --version
 bash --version
 mingw32-make --version
-curl --version
 ```
 
 If all of them return output containing a version number and are not pointing to the Anaconda distribution (if installed), you should be good to go.
@@ -125,7 +118,9 @@ and I suggest you work through the _[Getting started with CmdStanR](https://mc-s
 
 The ``PATH`` to RTools has to be set just as under Windows 10, so check out the corresponding description above depending on which version you have of RTools (3.5 or 4.0).
 
-The major difference on Windows 7 is that it does not come with ``curl``, which is needed for installing CmdStan via ``install_cmdstan()`` (see [this thread](https://discourse.mc-stan.org/t/win7-cant-find-stanc-exe-when-using-cmdstanr-install-cmdstan-solved/13846/9) for reference). 
+The major difference on Windows 7 is that it does not come with ``curl``, which is needed for installing CmdStan via ``install_cmdstan()`` (see [this thread](https://discourse.mc-stan.org/t/win7-cant-find-stanc-exe-when-using-cmdstanr-install-cmdstan-solved/13846/9) for reference).
+
+**UPDATE:** AS OF CmdStanR 2.23, CURL IS NO LONGER REQUIRED TO INSTALL CmdStan TROUGH ``install_cmdstan()``. THE FOLLWING APPLIES ONLY IF YOU WANT TO INSTALL AN OLDER VERSION OF CmdStan.
 
 You can either 
 
