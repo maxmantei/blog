@@ -1,5 +1,5 @@
 theme = "hugo-lithium"
-baseURL = "http://www.maxmantei.com"
+baseURL = "https://www.maxmantei.com"
 languageCode = "en-us"
 title = "Max's Blog"
 
