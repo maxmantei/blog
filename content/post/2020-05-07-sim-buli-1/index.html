@@ -1,0 +1,1547 @@
+---
+title: Simulating the Bundesliga (Part 1)
+author: Max Mantei
+date: '2020-05-07'
+categories:
+  - modeling
+  - R
+  - sports
+  - Stan
+tags:
+  - football
+  - posterior predictive
+  - rstanarm
+  - tidyverse
+slug: sim-buli-1
+---
+
+<link href="index_files/anchor-sections/anchor-sections.css" rel="stylesheet" />
+<script src="index_files/anchor-sections/anchor-sections.js"></script>
+<script src="index_files/htmlwidgets/htmlwidgets.js"></script>
+<script src="index_files/jquery/jquery.min.js"></script>
+<link href="index_files/datatables-css/datatables-crosstalk.css" rel="stylesheet" />
+<script src="index_files/datatables-binding/datatables.js"></script>
+<link href="index_files/dt-core/css/jquery.dataTables.min.css" rel="stylesheet" />
+<link href="index_files/dt-core/css/jquery.dataTables.extra.css" rel="stylesheet" />
+<script src="index_files/dt-core/js/jquery.dataTables.min.js"></script>
+<link href="index_files/crosstalk/css/crosstalk.css" rel="stylesheet" />
+<script src="index_files/crosstalk/js/crosstalk.min.js"></script>
+<script src="index_files/kePrint/kePrint.js"></script>
+<link href="index_files/lightable/lightable.css" rel="stylesheet" />
+
+
+<p>The current Covid-19 crisis brought public life to an abrupt halt. The German Bundesliga paused after its 25th match day. The last match was played on the 11th of March: A so called <em>Geisterspiel</em> between local rivals Gladbach and Köln in an empty Borussia-Park. Without cheering crowds, this derby, which Glabach won 2-1, had a somewhat eerie atmosphere. Amidst all discussion about how and when (or even if) the season should continue, I thought I could just build a simple statistical model and simulate the rest of the season. Admittedly, a simulation is even less exciting than a <em>Geisterspiel</em>. It is, however, a good way to show that any Bayesian model is a <em>generative</em> model, i.e. it is like a simulation.</p>
+<p>In this post we will load data on goals scored so far in this Bundesliga season and transform it so that we can create tables of standings for all matches that were already played and use our statistical model for all matches that were not played yet. Next, we will specify and fit a Bayesian Poisson Generalized Linear Mixed Model (Poisson GLMM) which we will use to predict the rest of the season. These prediction are like a simulation of potential full Bundesliga season and see briefly investigate how this season could have played out.</p>
+<div id="set-up-and-data-wrangling" class="section level2">
+<h2>Set-up and data wrangling</h2>
+<p>First, we will load the packages which we are going to use here. For the data wrangling part we will use the packages in the <code>tidyverse</code>. The modeling will be done using the <code>rstanarm</code> package.</p>
+<pre class="r"><code>library(tidyverse)
+library(rstanarm)</code></pre>
+<p>The data is readily available at <a href="https://www.football-data.co.uk/">football-data.co.uk</a>. They provide a lot of betting odds data and some match statistics. We will ignore most if it, though. For now we will only use data on goals scored by each team. The <code>D1-1920.csv</code> is read in using the <code>read_csv</code> function from the <code>readr</code> package, which is part of the <code>tidyverse</code>. The correct date format is specified here so that it is recognized as a date (and not just some string). Then the relevant columns are selected.</p>
+<pre class="r"><code>buli1920 &lt;- read_csv(
+  &quot;D1-1920.csv&quot;,
+   col_types = cols(Date = col_date(format = &quot;%d/%m/%Y&quot;))) %&gt;%
+  select(Date, HomeTeam:FTR)
+
+DT::datatable(buli1920)</code></pre>
+<div id="htmlwidget-1" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"filter":"none","data":[["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54","55","56","57","58","59","60","61","62","63","64","65","66","67","68","69","70","71","72","73","74","75","76","77","78","79","80","81","82","83","84","85","86","87","88","89","90","91","92","93","94","95","96","97","98","99","100","101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","131","132","133","134","135","136","137","138","139","140","141","142","143","144","145","146","147","148","149","150","151","152","153","154","155","156","157","158","159","160","161","162","163","164","165","166","167","168","169","170","171","172","173","174","175","176","177","178","179","180","181","182","183","184","185","186","187","188","189","190","191","192","193","194","195","196","197","198","199","200","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224"],["2019-08-16","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-18","2019-08-18","2019-08-23","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-25","2019-08-25","2019-08-30","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-09-01","2019-09-01","2019-09-13","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-15","2019-09-15","2019-09-20","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-22","2019-09-22","2019-09-23","2019-09-27","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-29","2019-09-29","2019-10-04","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-06","2019-10-06","2019-10-06","2019-10-18","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-20","2019-10-20","2019-10-25","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-27","2019-10-27","2019-11-01","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-03","2019-11-03","2019-11-08","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-10","2019-11-10","2019-11-10","2019-11-22","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-24","2019-11-24","2019-11-29","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-12-01","2019-12-01","2019-12-02","2019-12-06","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-08","2019-12-08","2019-12-13","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-15","2019-12-15","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-20","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-22","2019-12-22","2020-01-17","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-19","2020-01-19","2020-01-24","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-26","2020-01-26","2020-01-31","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-02","2020-02-02","2020-02-07","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-09","2020-02-14","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-16","2020-02-16","2020-02-21","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-23","2020-02-23","2020-02-24","2020-02-28","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-03-01","2020-03-01","2020-03-06","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-08","2020-03-08","2020-03-11"],["Bayern Munich","Dortmund","Freiburg","Leverkusen","Werder Bremen","Wolfsburg","M'gladbach","Ein Frankfurt","Union Berlin","FC Koln","Augsburg","Fortuna Dusseldorf","Hoffenheim","Mainz","Paderborn","Schalke 04","RB Leipzig","Hertha","M'gladbach","Bayern Munich","Freiburg","Leverkusen","Schalke 04","Wolfsburg","Union Berlin","Werder Bremen","Ein Frankfurt","Fortuna Dusseldorf","Augsburg","Dortmund","FC Koln","Mainz","Union Berlin","RB Leipzig","Hoffenheim","Paderborn","Schalke 04","Bayern Munich","Freiburg","Hertha","Leverkusen","Werder Bremen","M'gladbach","Ein Frankfurt","Wolfsburg","Union Berlin","Augsburg","Hoffenheim","Mainz","Paderborn","RB Leipzig","Dortmund","Fortuna Dusseldorf","FC Koln","Hertha","Bayern Munich","Freiburg","Leverkusen","Paderborn","Schalke 04","M'gladbach","Wolfsburg","Ein Frankfurt","Ein Frankfurt","Augsburg","Fortuna Dusseldorf","RB Leipzig","Union Berlin","Werder Bremen","Dortmund","FC Koln","Hoffenheim","Mainz","Bayern Munich","Freiburg","Hertha","Paderborn","Schalke 04","Leverkusen","Wolfsburg","M'gladbach","Hoffenheim","Dortmund","Ein Frankfurt","Leverkusen","RB Leipzig","Werder Bremen","Union Berlin","Fortuna Dusseldorf","Augsburg","FC Koln","Hertha","Mainz","Paderborn","Schalke 04","Bayern Munich","M'gladbach","Wolfsburg","Freiburg","Dortmund","Ein Frankfurt","Fortuna Dusseldorf","Leverkusen","Union Berlin","Werder Bremen","RB Leipzig","Augsburg","Hoffenheim","Schalke 04","FC Koln","Hertha","Hoffenheim","Paderborn","Bayern Munich","M'gladbach","Wolfsburg","Mainz","Ein Frankfurt","Augsburg","Dortmund","Freiburg","M'gladbach","RB Leipzig","Leverkusen","Union Berlin","Werder Bremen","Hoffenheim","Bayern Munich","FC Koln","Hertha","Mainz","Paderborn","Fortuna Dusseldorf","Wolfsburg","Schalke 04","Werder Bremen","Augsburg","Dortmund","Union Berlin","Leverkusen","Ein Frankfurt","Freiburg","M'gladbach","Wolfsburg","Hoffenheim","Bayern Munich","FC Koln","Mainz","RB Leipzig","Schalke 04","Hertha","Fortuna Dusseldorf","Paderborn","Schalke 04","Augsburg","FC Koln","Fortuna Dusseldorf","Hoffenheim","Mainz","RB Leipzig","Hertha","Paderborn","Dortmund","Ein Frankfurt","Freiburg","M'gladbach","Union Berlin","Wolfsburg","Bayern Munich","Werder Bremen","Leverkusen","Hertha","Augsburg","Dortmund","Fortuna Dusseldorf","Hoffenheim","Mainz","RB Leipzig","FC Koln","Paderborn","Ein Frankfurt","Freiburg","Hertha","Schalke 04","Werder Bremen","Wolfsburg","Leverkusen","Bayern Munich","Dortmund","Augsburg","Hoffenheim","Paderborn","RB Leipzig","Union Berlin","Fortuna Dusseldorf","FC Koln","Mainz","Bayern Munich","Freiburg","Hertha","M'gladbach","Werder Bremen","Schalke 04","Leverkusen","Wolfsburg","Ein Frankfurt","Fortuna Dusseldorf","Augsburg","Dortmund","Hoffenheim","Mainz","FC Koln","Union Berlin","RB Leipzig","Paderborn","Freiburg","Hertha","Leverkusen","Schalke 04","Wolfsburg","M'gladbach","Bayern Munich","Mainz","M'gladbach"],["Hertha","Augsburg","Mainz","Paderborn","Fortuna Dusseldorf","FC Koln","Schalke 04","Hoffenheim","RB Leipzig","Dortmund","Union Berlin","Leverkusen","Werder Bremen","M'gladbach","Freiburg","Bayern Munich","Ein Frankfurt","Wolfsburg","RB Leipzig","Mainz","FC Koln","Hoffenheim","Hertha","Paderborn","Dortmund","Augsburg","Fortuna Dusseldorf","Wolfsburg","Ein Frankfurt","Leverkusen","M'gladbach","Hertha","Werder Bremen","Bayern Munich","Freiburg","Schalke 04","Mainz","FC Koln","Augsburg","Paderborn","Union Berlin","RB Leipzig","Fortuna Dusseldorf","Dortmund","Hoffenheim","Ein Frankfurt","Leverkusen","M'gladbach","Wolfsburg","Bayern Munich","Schalke 04","Werder Bremen","Freiburg","Hertha","Fortuna Dusseldorf","Hoffenheim","Dortmund","RB Leipzig","Mainz","FC Koln","Augsburg","Union Berlin","Werder Bremen","Leverkusen","Bayern Munich","Mainz","Wolfsburg","Freiburg","Hertha","M'gladbach","Paderborn","Schalke 04","FC Koln","Union Berlin","RB Leipzig","Hoffenheim","Fortuna Dusseldorf","Dortmund","Werder Bremen","Augsburg","Ein Frankfurt","Paderborn","Wolfsburg","Bayern Munich","M'gladbach","Mainz","Freiburg","Hertha","FC Koln","Schalke 04","Hoffenheim","RB Leipzig","Union Berlin","Augsburg","Fortuna Dusseldorf","Dortmund","Werder Bremen","Leverkusen","Ein Frankfurt","Paderborn","Wolfsburg","Bayern Munich","Freiburg","M'gladbach","Schalke 04","FC Koln","Hertha","Mainz","Union Berlin","Augsburg","Dortmund","Fortuna Dusseldorf","RB Leipzig","Leverkusen","Freiburg","Werder Bremen","Ein Frankfurt","Hertha","Mainz","Fortuna Dusseldorf","Wolfsburg","Bayern Munich","Hoffenheim","Schalke 04","FC Koln","Paderborn","Augsburg","Werder Bremen","Leverkusen","Freiburg","Dortmund","Union Berlin","RB Leipzig","M'gladbach","Ein Frankfurt","Mainz","Fortuna Dusseldorf","RB Leipzig","Hoffenheim","Hertha","FC Koln","Bayern Munich","Paderborn","Schalke 04","Dortmund","Wolfsburg","Werder Bremen","Leverkusen","Augsburg","Freiburg","M'gladbach","Union Berlin","Ein Frankfurt","M'gladbach","Dortmund","Wolfsburg","Werder Bremen","Ein Frankfurt","Freiburg","Union Berlin","Bayern Munich","Leverkusen","FC Koln","RB Leipzig","Paderborn","Mainz","Augsburg","Hertha","Schalke 04","Hoffenheim","Fortuna Dusseldorf","Schalke 04","Werder Bremen","Union Berlin","Ein Frankfurt","Leverkusen","Bayern Munich","M'gladbach","Freiburg","Wolfsburg","Augsburg","Hoffenheim","Mainz","Paderborn","Union Berlin","Fortuna Dusseldorf","Dortmund","RB Leipzig","Ein Frankfurt","Freiburg","Wolfsburg","Hertha","Werder Bremen","Leverkusen","M'gladbach","Bayern Munich","Schalke 04","Paderborn","Fortuna Dusseldorf","FC Koln","Hoffenheim","Dortmund","RB Leipzig","Augsburg","Mainz","Union Berlin","Hertha","M'gladbach","Freiburg","Bayern Munich","Paderborn","Schalke 04","Wolfsburg","Leverkusen","FC Koln","Union Berlin","Werder Bremen","Ein Frankfurt","Hoffenheim","RB Leipzig","Dortmund","Augsburg","Fortuna Dusseldorf","FC Koln"],[2,5,3,3,1,2,0,1,0,1,1,1,3,1,1,0,2,0,1,6,1,0,3,1,3,3,2,1,2,4,0,2,1,1,0,1,2,4,1,2,2,0,2,2,1,1,0,0,0,2,1,2,1,0,3,1,2,1,1,1,5,1,2,3,2,1,1,2,1,1,3,2,3,2,2,2,2,0,2,0,4,3,3,5,1,8,2,1,2,2,1,2,2,0,3,4,3,0,1,3,0,0,1,2,1,4,4,1,2,1,1,1,2,1,4,2,2,2,2,5,1,2,3,2,2,0,2,6,2,1,0,1,0,2,1,0,3,3,0,0,2,1,2,1,2,2,1,0,3,2,0,2,2,2,3,3,0,1,1,3,0,1,5,2,0,3,2,1,5,0,3,0,2,5,1,2,1,2,4,2,5,1,1,1,0,1,4,0,4,1,2,1,3,2,1,1,0,3,0,0,1,0,0,2,4,1,3,2,1,0,2,3,2,1,1,3,2,4,1,0,1,2,1,2],[2,1,0,2,3,1,0,0,4,3,1,3,2,3,3,3,1,3,3,1,2,0,0,1,1,2,1,1,1,0,1,1,2,1,3,5,1,0,1,1,0,3,1,2,1,2,3,3,1,3,3,2,2,4,1,2,2,1,2,1,1,0,2,0,2,0,1,0,1,0,0,0,1,1,1,3,0,0,2,0,2,0,0,1,2,0,2,0,0,3,2,4,3,1,3,0,1,2,0,3,2,4,1,0,2,1,0,5,1,1,2,1,3,2,2,3,1,2,1,0,0,1,1,1,0,1,4,1,0,0,4,1,3,1,0,5,0,3,2,1,4,3,0,1,1,0,0,1,1,2,0,1,1,0,5,1,1,2,2,1,4,4,1,0,2,1,0,2,0,3,0,0,1,0,1,1,3,2,0,4,0,0,3,1,2,1,3,0,0,1,3,2,0,3,4,4,0,2,2,5,1,2,5,0,0,2,3,3,0,6,0,0,2,1,2,1,2,0,1,0,2,0,1,1],["D","H","H","H","A","H","D","H","A","A","D","A","H","A","A","A","H","A","A","H","A","D","H","D","H","H","H","D","H","H","A","H","A","D","A","A","H","H","D","H","H","A","H","D","D","A","A","A","A","A","A","D","A","A","H","A","D","D","A","D","H","H","D","H","D","H","D","H","D","H","H","H","H","H","H","A","H","D","D","D","H","H","H","H","A","H","D","H","H","A","A","A","A","A","D","H","H","A","H","D","A","A","D","H","A","H","H","A","H","D","A","D","A","A","H","A","H","D","H","H","H","H","H","H","H","A","A","H","H","H","A","D","A","H","H","A","H","D","A","A","A","A","H","D","H","H","H","A","H","D","D","H","H","H","A","H","A","A","A","H","A","A","H","H","A","H","H","A","H","A","H","D","H","H","D","H","A","D","H","A","H","H","A","D","A","D","H","D","H","D","A","A","H","A","A","A","D","H","A","A","D","A","A","H","H","A","D","A","H","A","H","H","D","D","A","H","D","H","D","D","A","H","D","H"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>Date<\/th>\n      <th>HomeTeam<\/th>\n      <th>AwayTeam<\/th>\n      <th>FTHG<\/th>\n      <th>FTAG<\/th>\n      <th>FTR<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":[4,5]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<p>The data contains 224 rows – all the matches that were played in the Bundesliga before Covid-19 brought everything to a halt. The column names for <code>Date</code>, <code>HomeTeam</code>, and <code>AwayTeam</code> are self-explanatory. The others are:</p>
+<ul>
+<li><code>FTHG</code> = Full Time Home Team Goals</li>
+<li><code>FTAG</code> = Full Time Away Team Goals</li>
+<li><code>FTR</code> = Full Time Result (H = Home Win, D = Draw, A = Away Win).</li>
+</ul>
+<p>Normally, a full season with 18 teams has <span class="math inline">\(18 \times 17 = 306\)</span> matches, so we are missing 82. Luckily, we do not have to write down all the matches we are missing. Using the <code>crossing</code> function, we create a data set of all combinations of <code>HomeTeam</code> and <code>AwayTeam</code> and then remove the cases where home and away teams are the same. (This reminds me of a smuggish remark by some Bayern Munich official who said that the Bayern training matches had more quality than most Bundesliga matches… <a href="https://knowyourmeme.com/memes/congratulations-you-played-yourself">but I digress.</a>)</p>
+<p>After creating the table of all possible matches, we join it with the data that we have. We arrange everything by date and add an arbitrary match identifier, <code>match_id</code>. Note that the missing matches do not have dates, but this is not a problem, since we are ignoring the time dimension for now. Along the way we converted the team columns to factor types with the same levels (that is why we created the sorted <code>teams</code> vector).</p>
+<pre class="r"><code>teams &lt;- buli1920$HomeTeam %&gt;% 
+  unique() %&gt;%
+  sort()
+
+all_matches &lt;- crossing(
+    HomeTeam = factor(teams), 
+    AwayTeam = factor(teams)
+    ) %&gt;% 
+  filter(HomeTeam != AwayTeam)
+
+buli1920 &lt;- buli1920 %&gt;% mutate(
+    HomeTeam = factor(HomeTeam, levels = teams),
+    AwayTeam = factor(AwayTeam, levels = teams)) %&gt;%
+  right_join(all_matches, by = c(&quot;HomeTeam&quot;, &quot;AwayTeam&quot;)) %&gt;%
+  arrange(Date) %&gt;%
+  mutate(match_id = 1:n())
+
+buli1920_obs &lt;- buli1920 %&gt;%
+  drop_na()
+
+buli1920_mis &lt;- buli1920 %&gt;%
+  filter(is.na(Date))
+
+nrow(buli1920_mis)</code></pre>
+<pre><code>[1] 82</code></pre>
+<p>As expected, we see that the data frame containing the missing Bundesliga matches has 82 rows.</p>
+<p>Right now the data is in what is called <em>wide format</em>. That means we have two columns for teams (home and away) and two columns for goals (again, home and away). All these columns literally make the data frame <em>wide</em>. However, for creating a Bundesliga table and for modeling match outcomes it will be useful to have the data in <em>long</em> format, i.e. less columns and more rows.</p>
+<p>A relatively new addition to the <code>tidyverse</code> are the <code>pivot_longer</code> and <code>pivot_wider</code> functions. These help you to get from wide to long data frames and vice versa. Their options are a bit elaborate and I’m still getting used to them. I found the <code>_spec</code> versions of the functions extremely useful when things become a bit more complicated. With the <code>_spec</code> approach you first set up a data frame indicating how you want to pivot things. Let’s do this for our data set using the <code>tribble</code> function.</p>
+<pre class="r"><code>spec &lt;- tribble(
+   ~.value, ~.name    , ~side,
+   &quot;team&quot; , &quot;HomeTeam&quot;, &quot;H&quot;  ,
+   &quot;team&quot; , &quot;AwayTeam&quot;, &quot;A&quot;  ,
+   &quot;G&quot;    , &quot;FTHG&quot;    , &quot;H&quot;  ,
+   &quot;G&quot;    , &quot;FTAG&quot;    , &quot;A&quot;  ,
+   &quot;GA&quot;   , &quot;FTAG&quot;    , &quot;H&quot;  ,
+   &quot;GA&quot;   , &quot;FTHG&quot;    , &quot;A&quot;
+  )</code></pre>
+<p>In the <code>.value</code> column we put the names of the new columns that we want to create. The <code>.name</code> column specifies the column names in the old data set which hold the values for the new created values. We then specify another variable (called <code>side</code>) that indicates whether the team (or goal <code>G</code>) is the home (H) or away (A) side. Notice that we create a <em>goals against</em> (GA) column in the process: We take the the away goals in the old data set (<code>FTAG</code>) and assign them to <code>GA</code> in the new data, while <code>side == "H"</code> indicates that these are the goals against the home side. Similarly for the home goals.</p>
+<p>I’m not going to pretend that this is super obvious (at least it was not for me), but I think looking at the results makes everything a bit clearer.</p>
+<pre class="r"><code>buli1920_long_obs &lt;- buli1920_obs %&gt;%
+  pivot_longer_spec(spec)
+
+DT::datatable(buli1920_long_obs, options = list(pageLength = 6))</code></pre>
+<div id="htmlwidget-2" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-2">{"x":{"filter":"none","data":[["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54","55","56","57","58","59","60","61","62","63","64","65","66","67","68","69","70","71","72","73","74","75","76","77","78","79","80","81","82","83","84","85","86","87","88","89","90","91","92","93","94","95","96","97","98","99","100","101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","131","132","133","134","135","136","137","138","139","140","141","142","143","144","145","146","147","148","149","150","151","152","153","154","155","156","157","158","159","160","161","162","163","164","165","166","167","168","169","170","171","172","173","174","175","176","177","178","179","180","181","182","183","184","185","186","187","188","189","190","191","192","193","194","195","196","197","198","199","200","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224","225","226","227","228","229","230","231","232","233","234","235","236","237","238","239","240","241","242","243","244","245","246","247","248","249","250","251","252","253","254","255","256","257","258","259","260","261","262","263","264","265","266","267","268","269","270","271","272","273","274","275","276","277","278","279","280","281","282","283","284","285","286","287","288","289","290","291","292","293","294","295","296","297","298","299","300","301","302","303","304","305","306","307","308","309","310","311","312","313","314","315","316","317","318","319","320","321","322","323","324","325","326","327","328","329","330","331","332","333","334","335","336","337","338","339","340","341","342","343","344","345","346","347","348","349","350","351","352","353","354","355","356","357","358","359","360","361","362","363","364","365","366","367","368","369","370","371","372","373","374","375","376","377","378","379","380","381","382","383","384","385","386","387","388","389","390","391","392","393","394","395","396","397","398","399","400","401","402","403","404","405","406","407","408","409","410","411","412","413","414","415","416","417","418","419","420","421","422","423","424","425","426","427","428","429","430","431","432","433","434","435","436","437","438","439","440","441","442","443","444","445","446","447","448"],["2019-08-16","2019-08-16","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-18","2019-08-18","2019-08-18","2019-08-18","2019-08-23","2019-08-23","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-25","2019-08-25","2019-08-25","2019-08-25","2019-08-30","2019-08-30","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-09-01","2019-09-01","2019-09-01","2019-09-01","2019-09-13","2019-09-13","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-15","2019-09-15","2019-09-15","2019-09-15","2019-09-20","2019-09-20","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-22","2019-09-22","2019-09-22","2019-09-22","2019-09-23","2019-09-23","2019-09-27","2019-09-27","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-29","2019-09-29","2019-09-29","2019-09-29","2019-10-04","2019-10-04","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-06","2019-10-06","2019-10-06","2019-10-06","2019-10-06","2019-10-06","2019-10-18","2019-10-18","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-20","2019-10-20","2019-10-20","2019-10-20","2019-10-25","2019-10-25","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-27","2019-10-27","2019-10-27","2019-10-27","2019-11-01","2019-11-01","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-03","2019-11-03","2019-11-03","2019-11-03","2019-11-08","2019-11-08","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-10","2019-11-10","2019-11-10","2019-11-10","2019-11-10","2019-11-10","2019-11-22","2019-11-22","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-24","2019-11-24","2019-11-24","2019-11-24","2019-11-29","2019-11-29","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-12-01","2019-12-01","2019-12-01","2019-12-01","2019-12-02","2019-12-02","2019-12-06","2019-12-06","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-08","2019-12-08","2019-12-08","2019-12-08","2019-12-13","2019-12-13","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-15","2019-12-15","2019-12-15","2019-12-15","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-20","2019-12-20","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-22","2019-12-22","2019-12-22","2019-12-22","2020-01-17","2020-01-17","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-19","2020-01-19","2020-01-19","2020-01-19","2020-01-24","2020-01-24","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-26","2020-01-26","2020-01-26","2020-01-26","2020-01-31","2020-01-31","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-02","2020-02-02","2020-02-02","2020-02-02","2020-02-07","2020-02-07","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-09","2020-02-09","2020-02-14","2020-02-14","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-16","2020-02-16","2020-02-16","2020-02-16","2020-02-21","2020-02-21","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-23","2020-02-23","2020-02-23","2020-02-23","2020-02-24","2020-02-24","2020-02-28","2020-02-28","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-03-01","2020-03-01","2020-03-01","2020-03-01","2020-03-06","2020-03-06","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-08","2020-03-08","2020-03-08","2020-03-08","2020-03-11","2020-03-11"],["D","D","H","H","H","H","H","H","A","A","H","H","D","D","H","H","A","A","A","A","D","D","A","A","H","H","A","A","A","A","A","A","H","H","A","A","A","A","H","H","A","A","D","D","H","H","D","D","H","H","H","H","H","H","D","D","H","H","H","H","A","A","H","H","A","A","D","D","A","A","A","A","H","H","H","H","D","D","H","H","H","H","A","A","H","H","D","D","D","D","A","A","A","A","A","A","A","A","A","A","A","A","D","D","A","A","A","A","H","H","A","A","D","D","D","D","A","A","D","D","H","H","H","H","D","D","H","H","D","D","H","H","D","D","H","H","D","D","H","H","H","H","H","H","H","H","H","H","H","H","A","A","H","H","D","D","D","D","D","D","H","H","H","H","H","H","H","H","A","A","H","H","D","D","H","H","H","H","A","A","A","A","A","A","A","A","A","A","D","D","H","H","H","H","A","A","H","H","D","D","A","A","A","A","D","D","H","H","A","A","H","H","H","H","A","A","H","H","D","D","A","A","D","D","A","A","A","A","H","H","A","A","H","H","D","D","H","H","H","H","H","H","H","H","H","H","H","H","H","H","A","A","A","A","H","H","H","H","H","H","A","A","D","D","A","A","H","H","H","H","A","A","H","H","D","D","A","A","A","A","A","A","A","A","H","H","D","D","H","H","H","H","H","H","A","A","H","H","D","D","D","D","H","H","H","H","H","H","A","A","H","H","A","A","A","A","A","A","H","H","A","A","A","A","H","H","H","H","A","A","H","H","H","H","A","A","H","H","A","A","H","H","D","D","H","H","H","H","D","D","H","H","A","A","D","D","H","H","A","A","H","H","H","H","A","A","D","D","A","A","D","D","H","H","D","D","H","H","D","D","A","A","A","A","H","H","A","A","A","A","A","A","D","D","H","H","A","A","A","A","D","D","A","A","A","A","H","H","H","H","A","A","D","D","A","A","H","H","A","A","H","H","H","H","D","D","D","D","A","A","H","H","D","D","H","H","D","D","D","D","A","A","H","H","D","D","H","H"],[1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13,14,14,15,15,16,16,17,17,18,18,19,19,20,20,21,21,22,22,23,23,24,24,25,25,26,26,27,27,28,28,29,29,30,30,31,31,32,32,33,33,34,34,35,35,36,36,37,37,38,38,39,39,40,40,41,41,42,42,43,43,44,44,45,45,46,46,47,47,48,48,49,49,50,50,51,51,52,52,53,53,54,54,55,55,56,56,57,57,58,58,59,59,60,60,61,61,62,62,63,63,64,64,65,65,66,66,67,67,68,68,69,69,70,70,71,71,72,72,73,73,74,74,75,75,76,76,77,77,78,78,79,79,80,80,81,81,82,82,83,83,84,84,85,85,86,86,87,87,88,88,89,89,90,90,91,91,92,92,93,93,94,94,95,95,96,96,97,97,98,98,99,99,100,100,101,101,102,102,103,103,104,104,105,105,106,106,107,107,108,108,109,109,110,110,111,111,112,112,113,113,114,114,115,115,116,116,117,117,118,118,119,119,120,120,121,121,122,122,123,123,124,124,125,125,126,126,127,127,128,128,129,129,130,130,131,131,132,132,133,133,134,134,135,135,136,136,137,137,138,138,139,139,140,140,141,141,142,142,143,143,144,144,145,145,146,146,147,147,148,148,149,149,150,150,151,151,152,152,153,153,154,154,155,155,156,156,157,157,158,158,159,159,160,160,161,161,162,162,163,163,164,164,165,165,166,166,167,167,168,168,169,169,170,170,171,171,172,172,173,173,174,174,175,175,176,176,177,177,178,178,179,179,180,180,181,181,182,182,183,183,184,184,185,185,186,186,187,187,188,188,189,189,190,190,191,191,192,192,193,193,194,194,195,195,196,196,197,197,198,198,199,199,200,200,201,201,202,202,203,203,204,204,205,205,206,206,207,207,208,208,209,209,210,210,211,211,212,212,213,213,214,214,215,215,216,216,217,217,218,218,219,219,220,220,221,221,222,222,223,223,224,224],["H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A"],["Bayern Munich","Hertha","Dortmund","Augsburg","Freiburg","Mainz","Leverkusen","Paderborn","Werder Bremen","Fortuna Dusseldorf","Wolfsburg","FC Koln","M'gladbach","Schalke 04","Ein Frankfurt","Hoffenheim","Union Berlin","RB Leipzig","FC Koln","Dortmund","Augsburg","Union Berlin","Fortuna Dusseldorf","Leverkusen","Hoffenheim","Werder Bremen","Mainz","M'gladbach","Paderborn","Freiburg","Schalke 04","Bayern Munich","RB Leipzig","Ein Frankfurt","Hertha","Wolfsburg","M'gladbach","RB Leipzig","Bayern Munich","Mainz","Freiburg","FC Koln","Leverkusen","Hoffenheim","Schalke 04","Hertha","Wolfsburg","Paderborn","Union Berlin","Dortmund","Werder Bremen","Augsburg","Ein Frankfurt","Fortuna Dusseldorf","Fortuna Dusseldorf","Wolfsburg","Augsburg","Ein Frankfurt","Dortmund","Leverkusen","FC Koln","M'gladbach","Mainz","Hertha","Union Berlin","Werder Bremen","RB Leipzig","Bayern Munich","Hoffenheim","Freiburg","Paderborn","Schalke 04","Schalke 04","Mainz","Bayern Munich","FC Koln","Freiburg","Augsburg","Hertha","Paderborn","Leverkusen","Union Berlin","Werder Bremen","RB Leipzig","M'gladbach","Fortuna Dusseldorf","Ein Frankfurt","Dortmund","Wolfsburg","Hoffenheim","Union Berlin","Ein Frankfurt","Augsburg","Leverkusen","Hoffenheim","M'gladbach","Mainz","Wolfsburg","Paderborn","Bayern Munich","RB Leipzig","Schalke 04","Dortmund","Werder Bremen","Fortuna Dusseldorf","Freiburg","FC Koln","Hertha","Hertha","Fortuna Dusseldorf","Bayern Munich","Hoffenheim","Freiburg","Dortmund","Leverkusen","RB Leipzig","Paderborn","Mainz","Schalke 04","FC Koln","M'gladbach","Augsburg","Wolfsburg","Union Berlin","Ein Frankfurt","Werder Bremen","Ein Frankfurt","Leverkusen","Augsburg","Bayern Munich","Fortuna Dusseldorf","Mainz","RB Leipzig","Wolfsburg","Union Berlin","Freiburg","Werder Bremen","Hertha","Dortmund","M'gladbach","FC Koln","Paderborn","Hoffenheim","Schalke 04","Mainz","FC Koln","Bayern Munich","Union Berlin","Freiburg","RB Leipzig","Hertha","Hoffenheim","Paderborn","Fortuna Dusseldorf","Schalke 04","Dortmund","Leverkusen","Werder Bremen","Wolfsburg","Augsburg","M'gladbach","Ein Frankfurt","Hoffenheim","Paderborn","Dortmund","Wolfsburg","Ein Frankfurt","Bayern Munich","Leverkusen","M'gladbach","RB Leipzig","Mainz","Werder Bremen","Freiburg","Union Berlin","Hertha","Fortuna Dusseldorf","FC Koln","Augsburg","Schalke 04","FC Koln","Hoffenheim","Hertha","RB Leipzig","Mainz","Union Berlin","Paderborn","Augsburg","Schalke 04","Fortuna Dusseldorf","Bayern Munich","Dortmund","M'gladbach","Werder Bremen","Wolfsburg","Leverkusen","Freiburg","Ein Frankfurt","Dortmund","Paderborn","Ein Frankfurt","Wolfsburg","Fortuna Dusseldorf","Bayern Munich","Leverkusen","Freiburg","Union Berlin","M'gladbach","Werder Bremen","Schalke 04","RB Leipzig","FC Koln","Augsburg","Hertha","Hoffenheim","Mainz","Schalke 04","Union Berlin","FC Koln","Augsburg","Hertha","Dortmund","Hoffenheim","Fortuna Dusseldorf","Paderborn","RB Leipzig","Bayern Munich","Leverkusen","M'gladbach","Freiburg","Wolfsburg","Werder Bremen","Mainz","Ein Frankfurt","Ein Frankfurt","Hertha","Augsburg","Mainz","Dortmund","Fortuna Dusseldorf","Freiburg","Wolfsburg","M'gladbach","Bayern Munich","RB Leipzig","Hoffenheim","Leverkusen","Schalke 04","Union Berlin","FC Koln","Werder Bremen","Paderborn","Hoffenheim","Augsburg","Bayern Munich","Werder Bremen","FC Koln","Leverkusen","Hertha","Freiburg","Mainz","Dortmund","Paderborn","Union Berlin","Fortuna Dusseldorf","RB Leipzig","Wolfsburg","M'gladbach","Schalke 04","Ein Frankfurt","Werder Bremen","Mainz","Augsburg","Fortuna Dusseldorf","Dortmund","RB Leipzig","Union Berlin","Hoffenheim","Leverkusen","Hertha","Ein Frankfurt","FC Koln","Freiburg","Bayern Munich","M'gladbach","Paderborn","Wolfsburg","Schalke 04","Hoffenheim","Dortmund","Bayern Munich","Wolfsburg","FC Koln","Werder Bremen","Mainz","Leverkusen","RB Leipzig","Augsburg","Schalke 04","Freiburg","Hertha","M'gladbach","Fortuna Dusseldorf","Union Berlin","Paderborn","Ein Frankfurt","Schalke 04","M'gladbach","Augsburg","Dortmund","FC Koln","Wolfsburg","Fortuna Dusseldorf","Werder Bremen","Hoffenheim","Ein Frankfurt","Mainz","Freiburg","RB Leipzig","Union Berlin","Hertha","Bayern Munich","Paderborn","Leverkusen","Dortmund","FC Koln","Ein Frankfurt","RB Leipzig","Freiburg","Paderborn","M'gladbach","Mainz","Union Berlin","Augsburg","Wolfsburg","Hertha","Bayern Munich","Schalke 04","Werder Bremen","Hoffenheim","Leverkusen","Fortuna Dusseldorf","Hertha","Schalke 04","Augsburg","Werder Bremen","Dortmund","Union Berlin","Fortuna Dusseldorf","Ein Frankfurt","Hoffenheim","Leverkusen","Mainz","Bayern Munich","RB Leipzig","M'gladbach","FC Koln","Freiburg","Paderborn","Wolfsburg","Ein Frankfurt","Augsburg","Freiburg","Hoffenheim","Hertha","Mainz","Schalke 04","Paderborn","Werder Bremen","Union Berlin","Wolfsburg","Fortuna Dusseldorf","Leverkusen","Dortmund","Bayern Munich","RB Leipzig","Dortmund","Ein Frankfurt","Augsburg","Freiburg","Hoffenheim","Wolfsburg","Paderborn","Hertha","RB Leipzig","Werder Bremen","Union Berlin","Leverkusen","Fortuna Dusseldorf","M'gladbach","FC Koln","Bayern Munich","Mainz","Schalke 04","Bayern Munich","Paderborn","Freiburg","Fortuna Dusseldorf","Hertha","FC Koln","M'gladbach","Hoffenheim","Werder Bremen","Dortmund","Schalke 04","RB Leipzig","Leverkusen","Augsburg","Wolfsburg","Mainz","Ein Frankfurt","Union Berlin","Fortuna Dusseldorf","Hertha","Augsburg","M'gladbach","Dortmund","Freiburg","Hoffenheim","Bayern Munich","Mainz","Paderborn","FC Koln","Schalke 04","Union Berlin","Wolfsburg","RB Leipzig","Leverkusen","Paderborn","FC Koln","Freiburg","Union Berlin","Hertha","Werder Bremen","Leverkusen","Ein Frankfurt","Schalke 04","Hoffenheim","Wolfsburg","RB Leipzig","M'gladbach","Dortmund","Bayern Munich","Augsburg","Mainz","Fortuna Dusseldorf","M'gladbach","FC Koln"],[2,2,5,1,3,0,3,2,1,3,2,1,0,0,1,0,0,4,1,3,1,1,1,3,3,2,1,3,1,3,0,3,2,1,0,3,1,3,6,1,1,2,0,0,3,0,1,1,3,1,3,2,2,1,1,1,2,1,4,0,0,1,2,1,1,2,1,1,0,3,1,5,2,1,4,0,1,1,2,1,2,0,0,3,2,1,2,2,1,1,1,2,0,3,0,3,0,1,2,3,1,3,2,2,1,2,0,4,3,1,1,2,2,2,1,1,1,2,1,1,5,1,1,0,2,2,3,0,2,2,1,0,1,1,2,0,1,1,1,0,3,0,2,0,3,1,2,1,2,1,2,3,2,0,0,0,2,2,0,0,4,2,3,0,3,0,5,1,1,2,8,0,2,2,1,0,2,0,2,3,1,2,2,4,2,3,0,1,3,3,4,0,3,1,0,2,1,0,3,3,0,2,0,4,1,1,2,0,1,2,4,1,4,0,1,5,2,1,1,1,1,2,1,1,2,3,1,2,4,2,2,3,2,1,2,2,2,1,5,0,1,0,2,1,3,1,2,1,2,0,0,1,2,4,6,1,2,0,1,0,0,4,1,1,0,3,2,1,1,0,0,5,3,0,3,3,0,2,0,1,2,4,1,3,2,0,1,1,2,1,2,0,1,0,0,1,3,1,2,2,0,0,2,1,2,1,2,0,3,5,3,1,0,1,1,2,1,2,3,1,0,4,1,4,5,1,2,0,0,2,3,1,2,0,1,2,5,0,0,3,3,0,0,0,2,1,5,0,1,1,2,1,1,3,2,2,4,0,2,4,5,0,1,0,1,3,1,1,0,2,1,1,4,3,0,0,4,0,1,1,2,3,1,2,3,0,2,3,1,4,1,4,0,0,3,2,0,2,0,5,1,1,0,2,0,5,2,0,4,0,1,2,3,3,2,3,1,0,0,6,2,0,3,0,2,2,1,1,1,2,3,1,2,2,4,0,1,1,0,0,1,2,2,0,1,1,2,1],[2,2,1,5,0,3,2,3,3,1,1,2,0,0,0,1,4,0,3,1,1,1,3,1,2,3,3,1,3,1,3,0,1,2,3,0,3,1,1,6,2,1,0,0,0,3,1,1,1,3,2,3,1,2,1,1,1,2,0,4,1,0,1,2,2,1,1,1,3,0,5,1,1,2,0,4,1,1,1,2,0,2,3,0,1,2,2,2,1,1,2,1,3,0,3,0,1,0,3,2,3,1,2,2,2,1,4,0,1,3,2,1,2,2,1,1,2,1,1,1,1,5,0,1,2,2,0,3,2,2,0,1,1,1,0,2,1,1,0,1,0,3,0,2,1,3,1,2,1,2,3,2,0,2,0,0,2,2,0,0,2,4,0,3,0,3,1,5,2,1,0,8,2,2,0,1,0,2,3,2,2,1,4,2,3,2,1,0,3,3,0,4,1,3,2,0,0,1,3,3,2,0,4,0,1,1,0,2,2,1,1,4,0,4,5,1,1,2,1,1,2,1,1,1,3,2,2,1,2,4,3,2,1,2,2,2,1,2,0,5,0,1,1,2,1,3,1,2,0,2,1,0,4,2,1,6,0,2,0,1,4,0,1,1,3,0,1,2,0,1,5,0,0,3,3,3,2,0,1,0,4,2,3,1,0,2,1,1,1,2,0,2,0,1,1,0,1,3,2,2,0,0,1,2,1,2,0,2,5,3,1,3,1,0,2,1,2,1,1,3,4,0,4,1,1,5,0,2,2,0,1,3,0,2,2,1,0,5,3,0,0,3,0,0,1,2,0,5,1,1,1,2,3,1,2,2,0,4,4,2,0,5,0,1,3,1,1,1,2,0,1,1,3,4,0,0,0,4,1,1,3,2,2,1,0,3,3,2,4,1,4,1,0,0,2,3,2,0,5,0,1,1,2,0,5,0,0,2,0,4,2,1,3,3,3,2,0,1,6,0,0,2,0,3,2,2,1,1,2,1,1,3,2,2,0,4,1,1,0,0,2,1,0,2,1,1,1,2]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>Date<\/th>\n      <th>FTR<\/th>\n      <th>match_id<\/th>\n      <th>side<\/th>\n      <th>team<\/th>\n      <th>G<\/th>\n      <th>GA<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":6,"columnDefs":[{"className":"dt-right","targets":[3,6,7]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[6,10,25,50,100]}},"evals":[],"jsHooks":[]}</script>
+<p>Each row now holds the name of a <code>team</code> and whether it played home or away (<code>side</code>), the goals it scored, <code>G</code>, and the goals scored against that team, <code>GA</code>. Now the <code>match_id</code> comes in handy as it helps us to keep track which rows belong together, i.e. to the same match.</p>
+<p>We do the same for the data frame with the missing matches, but that’s not really interesting until we predict some new values.</p>
+<pre class="r"><code>buli1920_long_mis &lt;- buli1920_mis %&gt;%
+  pivot_longer_spec(spec)
+
+head(buli1920_long_mis, 4)</code></pre>
+<pre><code># A tibble: 4 x 7
+  Date       FTR   match_id side  team           G    GA
+  &lt;date&gt;     &lt;chr&gt;    &lt;int&gt; &lt;chr&gt; &lt;fct&gt;      &lt;dbl&gt; &lt;dbl&gt;
+1 NA         &lt;NA&gt;       225 H     Augsburg      NA    NA
+2 NA         &lt;NA&gt;       225 A     FC Koln       NA    NA
+3 NA         &lt;NA&gt;       226 H     Augsburg      NA    NA
+4 NA         &lt;NA&gt;       226 A     Hoffenheim    NA    NA</code></pre>
+<p>We remove the <code>G</code> column, which is full of <code>NA</code>s anyway, from the missing matches data frame for now, because this is what we later want to predict. (Otherwise the predict function, that we will use later, will complain that there is already a <code>G</code> column present.) We can keep <code>FTR</code> and <code>GA</code> and fill in the missing values after we predicted the goals column.</p>
+<pre class="r"><code>buli1920_long_mis &lt;- buli1920_long_mis %&gt;%
+  select(-G)</code></pre>
+<p>But before we do that, let’s first re-create the Bundesliga table as it is right now. For that we write a little function, which we can reuse later. The function takes a data frame <code>df</code> as input and then calculates the points <code>pts</code> every team got each match and the goal difference <code>GD</code> for each team in each match. Then, everything is grouped by teams. The number of rows (<code>n()</code>) per team is the number of matches played by that team and all other columns are just summed up. We arrange the resulting data frame by points, goal difference and goals, all in descending order and add a positions, <code>pos</code>, column ranging from 1 to 18.</p>
+<p>The function will be usable on the long version of the observed matches data frame.</p>
+<pre class="r"><code>gen_table &lt;- function(df){
+  df %&gt;% 
+    mutate(
+      pts = case_when(FTR == &quot;D&quot;  ~ 1, 
+                      FTR == side ~ 3, 
+                      FTR != side ~ 0),
+      GD = G - GA
+      ) %&gt;%
+    group_by(team) %&gt;%
+    summarize(
+      played = n(), 
+      pts = sum(pts), 
+      G = sum(G), 
+      GA = sum(GA), 
+      GD = sum(GD),
+      .groups = &quot;drop&quot;) %&gt;%
+    arrange(
+      desc(pts), 
+      desc(GD), 
+      desc(G)
+      ) %&gt;%
+    bind_cols(&quot;pos&quot; = 1:18, .)
+}
+
+pts_table_obs &lt;- buli1920_long_obs %&gt;% 
+  gen_table()</code></pre>
+<p>Let’s have a look at it.</p>
+<table class="table" style="margin-left: auto; margin-right: auto;">
+<caption>
+<span id="tab:table-obs">Table 1: </span>Bundesliga Standings at time of writing
+</caption>
+<thead>
+<tr>
+<th style="text-align:right;">
+</th>
+<th style="text-align:left;">
+Team
+</th>
+<th style="text-align:right;">
+Played
+</th>
+<th style="text-align:right;">
+PTS
+</th>
+<th style="text-align:right;">
+G
+</th>
+<th style="text-align:right;">
+GA
+</th>
+<th style="text-align:right;">
+GD
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;width: 3em; ">
+1
+</td>
+<td style="text-align:left;">
+Bayern Munich
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+55
+</td>
+<td style="text-align:right;width: 3em; ">
+73
+</td>
+<td style="text-align:right;width: 3em; ">
+26
+</td>
+<td style="text-align:right;width: 3em; ">
+47
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+2
+</td>
+<td style="text-align:left;">
+Dortmund
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+51
+</td>
+<td style="text-align:right;width: 3em; ">
+68
+</td>
+<td style="text-align:right;width: 3em; ">
+33
+</td>
+<td style="text-align:right;width: 3em; ">
+35
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+3
+</td>
+<td style="text-align:left;">
+RB Leipzig
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+50
+</td>
+<td style="text-align:right;width: 3em; ">
+62
+</td>
+<td style="text-align:right;width: 3em; ">
+26
+</td>
+<td style="text-align:right;width: 3em; ">
+36
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+4
+</td>
+<td style="text-align:left;">
+M’gladbach
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+49
+</td>
+<td style="text-align:right;width: 3em; ">
+49
+</td>
+<td style="text-align:right;width: 3em; ">
+30
+</td>
+<td style="text-align:right;width: 3em; ">
+19
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+5
+</td>
+<td style="text-align:left;">
+Leverkusen
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+47
+</td>
+<td style="text-align:right;width: 3em; ">
+45
+</td>
+<td style="text-align:right;width: 3em; ">
+30
+</td>
+<td style="text-align:right;width: 3em; ">
+15
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+6
+</td>
+<td style="text-align:left;">
+Schalke 04
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+37
+</td>
+<td style="text-align:right;width: 3em; ">
+33
+</td>
+<td style="text-align:right;width: 3em; ">
+36
+</td>
+<td style="text-align:right;width: 3em; ">
+-3
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+7
+</td>
+<td style="text-align:left;">
+Wolfsburg
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+36
+</td>
+<td style="text-align:right;width: 3em; ">
+34
+</td>
+<td style="text-align:right;width: 3em; ">
+30
+</td>
+<td style="text-align:right;width: 3em; ">
+4
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+8
+</td>
+<td style="text-align:left;">
+Freiburg
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+36
+</td>
+<td style="text-align:right;width: 3em; ">
+34
+</td>
+<td style="text-align:right;width: 3em; ">
+35
+</td>
+<td style="text-align:right;width: 3em; ">
+-1
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+9
+</td>
+<td style="text-align:left;">
+Hoffenheim
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+35
+</td>
+<td style="text-align:right;width: 3em; ">
+35
+</td>
+<td style="text-align:right;width: 3em; ">
+43
+</td>
+<td style="text-align:right;width: 3em; ">
+-8
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+10
+</td>
+<td style="text-align:left;">
+FC Koln
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+32
+</td>
+<td style="text-align:right;width: 3em; ">
+39
+</td>
+<td style="text-align:right;width: 3em; ">
+45
+</td>
+<td style="text-align:right;width: 3em; ">
+-6
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+11
+</td>
+<td style="text-align:left;">
+Union Berlin
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+30
+</td>
+<td style="text-align:right;width: 3em; ">
+32
+</td>
+<td style="text-align:right;width: 3em; ">
+41
+</td>
+<td style="text-align:right;width: 3em; ">
+-9
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+12
+</td>
+<td style="text-align:left;">
+Ein Frankfurt
+</td>
+<td style="text-align:right;width: 3em; ">
+24
+</td>
+<td style="text-align:right;width: 3em; ">
+28
+</td>
+<td style="text-align:right;width: 3em; ">
+38
+</td>
+<td style="text-align:right;width: 3em; ">
+41
+</td>
+<td style="text-align:right;width: 3em; ">
+-3
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+13
+</td>
+<td style="text-align:left;">
+Hertha
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+28
+</td>
+<td style="text-align:right;width: 3em; ">
+32
+</td>
+<td style="text-align:right;width: 3em; ">
+48
+</td>
+<td style="text-align:right;width: 3em; ">
+-16
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+14
+</td>
+<td style="text-align:left;">
+Augsburg
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+27
+</td>
+<td style="text-align:right;width: 3em; ">
+36
+</td>
+<td style="text-align:right;width: 3em; ">
+52
+</td>
+<td style="text-align:right;width: 3em; ">
+-16
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+15
+</td>
+<td style="text-align:left;">
+Mainz
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+26
+</td>
+<td style="text-align:right;width: 3em; ">
+34
+</td>
+<td style="text-align:right;width: 3em; ">
+53
+</td>
+<td style="text-align:right;width: 3em; ">
+-19
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+16
+</td>
+<td style="text-align:left;">
+Fortuna Dusseldorf
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+22
+</td>
+<td style="text-align:right;width: 3em; ">
+27
+</td>
+<td style="text-align:right;width: 3em; ">
+50
+</td>
+<td style="text-align:right;width: 3em; ">
+-23
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+17
+</td>
+<td style="text-align:left;">
+Werder Bremen
+</td>
+<td style="text-align:right;width: 3em; ">
+24
+</td>
+<td style="text-align:right;width: 3em; ">
+18
+</td>
+<td style="text-align:right;width: 3em; ">
+27
+</td>
+<td style="text-align:right;width: 3em; ">
+55
+</td>
+<td style="text-align:right;width: 3em; ">
+-28
+</td>
+</tr>
+<tr>
+<td style="text-align:right;width: 3em; ">
+18
+</td>
+<td style="text-align:left;">
+Paderborn
+</td>
+<td style="text-align:right;width: 3em; ">
+25
+</td>
+<td style="text-align:right;width: 3em; ">
+16
+</td>
+<td style="text-align:right;width: 3em; ">
+30
+</td>
+<td style="text-align:right;width: 3em; ">
+54
+</td>
+<td style="text-align:right;width: 3em; ">
+-24
+</td>
+</tr>
+</tbody>
+</table>
+<p>As a Werder Bremen fan the table is kind of depressing for me, though, so let’s quickly move on.</p>
+</div>
+<div id="modeling-match-outcomes" class="section level2">
+<h2>Modeling match outcomes</h2>
+<p>Before predicting goal scores and simulating the rest of the season, we have to come up with a model that generates those predictions. In this part of the series I will use a fairly simple model which will only consider team differences in the ability to score goals and the home advantage each team has and ignore, for example defensive capabilities of each team.</p>
+<p>In the following section I will briefly go over the mathematical representation of the model. Feel free to skip this part. Then, I will fit the model using <code>rstanarm</code>. I will then summarize the main implications of the models in two plot showing the predicted <em>expected number of goals</em> (or <code>xG</code>) for each team, when they play home and away from home.</p>
+<div id="formulating-the-model" class="section level3">
+<h3>Formulating the model</h3>
+<p>Working with football data is nice, because the number of goals often match a Poisson distribution pretty closely. I therefore fit a Poisson Generalized Linear Mixed Model (GLMM) with a log-link function, one binary predictor <code>home := (side == "H")</code>, and two grouping variables (<code>team</code> with index <span class="math inline">\(t\)</span> and <code>match_id</code> with index <span class="math inline">\(m\)</span>). The likelihood for our data (scored goals <span class="math inline">\(G\)</span>) can be written like this:</p>
+<p><span class="math display">\[
+\begin{align}
+ G_i        &amp;\sim \text{Poisson}(\mu_i) \newline
+ \log \mu_i &amp;= \alpha_{t[i]} + \beta_{t[i]} \text{home}_i + \delta_{m[i]}
+\end{align}
+\]</span></p>
+<p>The coefficient <span class="math inline">\(\alpha\)</span> is the log expected number of goals when <span class="math inline">\(\text{home}=0\)</span>, i.e. it measures the expected number of goals when team <span class="math inline">\(t\)</span> plays <em>not</em> at home. When team <span class="math inline">\(t\)</span> <em>does</em> play at home, i.e. <span class="math inline">\(\text{home}=1\)</span>, then <span class="math inline">\(\beta\)</span> is the additional effect of playing at home, i.e. the <em>home advantage</em>. It is really only an advantage if <span class="math inline">\(\beta&gt;0\)</span>, which is a very reasonable assumption – however, I don’t restrict <span class="math inline">\(\beta\)</span> to be positive.</p>
+<p>The <span class="math inline">\(\delta\)</span> is allowed to vary for each match. This will capture unobserved factors which affect <em>both</em> teams (in the same way) in a match. <em>Unobserved</em> here means stuff that is not explicitly in the model, i.e. weather conditions, time of day etc., but I don’t expect <span class="math inline">\(\delta\)</span> to be big. Not because the aren’t possibly any systematic effects, which are not part of the model, but rather because <span class="math inline">\(\delta\)</span> is an amalgamation of many smaller (and likely counteracting) effects.</p>
+<p>Since <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span> are allowed to vary by team and <span class="math inline">\(\delta\)</span> varies by match, we need to add some structure to the model, otherwise we would be horribly overfitting. Here comes the hierarchical part of the model into play.</p>
+<p><span class="math display">\[
+\begin{align}
+ \delta_m   &amp;\sim \text{Normal}(0, \sigma_{M}^2) \newline
+ \begin{bmatrix}
+    \alpha \newline
+    \beta
+  \end{bmatrix}_t &amp;\sim \text{MultiNormal} \left(
+    \begin{bmatrix}
+      \mu_\alpha \newline 
+      \mu_\beta
+    \end{bmatrix}, \Sigma  \right)
+\end{align}
+\]</span></p>
+<p>All <span class="math inline">\(\delta_m\)</span> come from the same distribution with common standard deviation <span class="math inline">\(\sigma_M\)</span>. Here, <span class="math inline">\(\sigma_M\)</span> is like a hyper-parameter, or tuning parameter which controls the amount of heterogeneity across matches. If <span class="math inline">\(\sigma_M\)</span> is high, we’d expect a high number of very low scoring games, e.g. 0-0, <em>and</em> a high number of high scoring games, e.g 4-5. When <span class="math inline">\(\sigma_M\)</span> is low, the match outcomes will follow the estimated expected goals per team more closely.</p>
+<p>Expected goals per team are estimated by <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span> which come from a Multivariate Normal distribution. The mean parameters <span class="math inline">\(\mu_\alpha\)</span> and <span class="math inline">\(\mu_\beta\)</span> represent the average of team expected goals away from home (<span class="math inline">\(\mu_\alpha\)</span>) and the average of team home advantages (<span class="math inline">\(\mu_\beta\)</span>). These effects are allowed to be correlated through the covariance matrix <span class="math inline">\(\Sigma\)</span>.</p>
+<p>Now we have to set priors for these hierarchical parameters.</p>
+<p><span class="math display">\[
+\begin{align}
+ \mu_\alpha  &amp;\sim \text{Normal}(0.4, 1^2) \newline
+ \mu_\beta   &amp;\sim \text{Normal}(0.3, 0.5^2) \newline
+ \sigma_M    &amp;\sim \text{Exponential}(1) \newline
+ \Sigma      &amp;= \begin{bmatrix}
+    \sigma_\alpha &amp; 0 \newline
+    0 &amp; \sigma_\beta
+  \end{bmatrix} \Omega \begin{bmatrix}
+    \sigma_\alpha &amp; 0 \newline
+    0 &amp; \sigma_\beta
+  \end{bmatrix} \newline
+ \sigma_\alpha, \sigma_\beta &amp; \sim \text{Exponential}(1) \newline
+ \Omega &amp;\sim \text{LKJ}(1)
+\end{align}
+\]</span></p>
+<p>I chose a prior for <span class="math inline">\(\mu_\alpha\)</span> which implies that the median of the team expected goals away from home is roughly <span class="math inline">\(\exp(0.4) \approx 1.5\)</span>. This means, I expect half of the teams score less than 1.5 goals on average away from home and half of the teams score more than 1.5 goals, when playing away. The prior on <span class="math inline">\(\mu_\beta\)</span> follows a similar logic. It is set so that <span class="math inline">\(\exp(0.4 + 0.3) \approx 2\)</span> roughly half of the teams playing at home score less than 2 goals on average and the other half scores more than 2 on average when at home.</p>
+<p>All other priors are <code>rstanarm</code> defaults – I think in reality <code>rstanarm</code> does something a little more complex, but this should <em>essentially</em> be what’s going on: The standard deviations <span class="math inline">\(\sigma_M, \sigma_\alpha, \sigma_\beta\)</span> control the variability of the corresponding hierarchical parameters <span class="math inline">\(\delta, \alpha, \beta\)</span>. Their Exponential(1) priors are most likely too wide, but it’s better to err on the side of flexibility here.</p>
+<p>The correlation matrix <span class="math inline">\(\Omega\)</span> is given a LKJ(1) prior which is uniform in <span class="math inline">\((-1,1)\)</span>. The correlation between <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span> could be positive, since I’d reckon that good teams (high <span class="math inline">\(\alpha\)</span>) play even better at home (high <span class="math inline">\(\beta\)</span>). On the other hand, bad teams (low <span class="math inline">\(\alpha\)</span>) could follow the strategy to just play good at home (high <span class="math inline">\(\beta\)</span>) and don’t care so much about winning away matches which would imply a negative correlation. I guess the uniform prior is fine.</p>
+</div>
+<div id="running-the-model" class="section level3">
+<h3>Running the model</h3>
+<p>We specified a probabilistic model, with a likelihood and priors. In Bayesian statistics we combine the likelihood of the data and our prior beliefs and compute the posterior distribution via Bayes rule.</p>
+<p><span class="math display">\[p(\theta|D) = \frac{p(D|\theta) \times p(\theta)}{p(D)},\]</span>
+or</p>
+<p><span class="math display">\[\text{posterior} = \frac{\text{likelihood} \times \text{prior}}{\text{evidence}}\]</span></p>
+<p>The posterior is thus a summary of what we know and belief about the world. If you are not familiar with Bayes theorem, you can check out this awesome video by Grant Sanderson.</p>
+{{% youtube "HZGCoVF3YvM" %}}
+<p>Computing the posterior of non-trivial models is often extremely hard, if not impossible. But luckily we can use computers and well crafted programs to help us.</p>
+<p>Now that we have formulated the model, let’s fit it.</p>
+<p>Bayesian GLMMs can easily be run using the <code>rstanarm::stan_glmer()</code> function. The <code>rstanarm</code> package aims at offering Bayesian alternatives to frequently used frequentest methods – no pun intended. In this case it mimics the <code>glmer</code> function from the <code>lme4</code> package, so we can use the <code>lme4</code> formula syntax. <code>rstanarm</code> is build on Stan which is a probabilistic programming language for very efficient Markov Chain Monte Carlo (MCMC) – a way to produce samples from the posterior distribution of our model. Before we run the model we set the options to tell R that we have multiple cores available for MCMC.</p>
+<pre class="r"><code>options(mc.cores = parallel::detectCores())
+
+poisson_glmm &lt;- stan_glmer(
+  G ~ side + (side|team) + (1|match_id),
+  data = buli1920_long_obs, 
+  family = poisson(link = &quot;log&quot;),
+  prior_intercept = normal(0.4, 1, autoscale = FALSE),
+  prior = normal(0.3, 0.5, autoscale = FALSE),
+  iter = 2000,
+  refresh = 500)</code></pre>
+<p>The model ran without problems in about 20 seconds on my laptop and produced 4 Markov Chains with 1,000 draws from the posterior each. So for all parameters in our model we have 4,000 plausible values. Let’s see the results.</p>
+</div>
+<div id="results" class="section level3">
+<h3>Results</h3>
+<pre class="r"><code>poisson_glmm</code></pre>
+<pre><code>stan_glmer
+ family:       poisson [log]
+ formula:      G ~ side + (side | team) + (1 | match_id)
+ observations: 448
+------
+            Median MAD_SD
+(Intercept) 0.4    0.1   
+sideH       0.1    0.1   
+
+Error terms:
+ Groups   Name        Std.Dev. Corr
+ match_id (Intercept) 0.076        
+ team     (Intercept) 0.247        
+          sideH       0.199    0.19
+Num. levels: match_id 224, team 18 
+
+------
+* For help interpreting the printed output see ?print.stanreg
+* For info on the priors used see ?prior_summary.stanreg</code></pre>
+<p>This summary should be looking familiar to anyone, who used the <code>lme4</code> package before. It shows summary statistics of the posterior distribution for all parameters.</p>
+<p>The posterior median for <span class="math inline">\(\alpha\)</span> is 0.4. That’s really close to my prior belief! I’m a bit surprised – although, I probably shouldn’t be, but that’s a different and more philosophical debate. The posterior median for <span class="math inline">\(\beta\)</span> is quite a bit lower than my prior belief. <span class="math inline">\(\beta\)</span> is mostly positive though, so there <em>is</em> a measurable home advantage.</p>
+<p>Match heterogeneity denoted by <span class="math inline">\(\delta\)</span> in our model has a very low spread with the posterior median of <span class="math inline">\(\sigma_M\)</span> being roughly 0.08. Variability across teams in <span class="math inline">\(\sigma_\alpha\)</span> (median = 0.25) and <span class="math inline">\(\sigma_\beta\)</span> (median = 0.20) is more prominent. However, I think it’s not surprising to find team differences.</p>
+<p>Finally, we see that the correlation between scoring goals (away) and home advantage is positive (0.16): Better teams are expected to have an even bigger home advantage. This can also be seen when we plot the median expected goals for home and way matches of each team implied by the model.</p>
+<p><img src="plot-medians-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p>If a team lies on the dashed diagonal line, it’s expected goals will be the same in home and away matches. Teams that lie above the dashed line are expected to score more goals at home than away.</p>
+<p>The home advantage is seen for nearly every team (except for Werder Bremen, who really struggled at home this season). We can also see that the cloud of points is tilted slightly above the 45 degree line. This is due to the positive correlation between <span class="math inline">\(\alpha_t\)</span> and <span class="math inline">\(\beta_t\)</span> in the model above: Dortmund, Bayern Munich, and RB Leipzig are expected to score more away goals than other teams and even more home goals relative to other teams. Low scoring teams such as Fortuna Düsseldorf, Werder Bremen, and Paderborn on the other hand do not have a strong home advantage – Werder Bremen even has a slight home <em>disadvantage</em>.</p>
+<p>Since we estimated a full Bayesian model, we have complete quantification of uncertainty for all the parameters in the model. Instead of looking just at the medians, we can inspect the whole posterior expected goal distribution for each team.</p>
+<p>This second plot draws contour lines for each team separately to avoid cluttering. If you are not familiar with contour lines, think of them as the height indications on a map, where the higher you go, the more probable is the location you are standing in. Location is just a specific combination of expected away goals and expected home goals and the “height” indicates how plausible this location is.</p>
+<p><img src="plot-contours-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p>Here we can see differences between teams in a bit more detail.</p>
+<p>For example, Bayern Munich and Borrusia Dortmund both score a lot of goals. Dortmund has the stronger home advantage, while Bayern is better at scoring away from home.</p>
+<p>Comparing Gladbach and Leipzig we see that Leipzig tends to score more goals, but Gladbach has the clearer home advantage and scores a bit more consistently, which you can see in the slightly tighter contour lines.</p>
+<p>Taking a look at the teams at the bottom of the table, Paderborn and Werder Bremen have comparable away goal expectations, while Bremen has a considerably lower range of plausible expected home goals, indicated by the contour lines which fall below the dashed diagonal line.</p>
+</div>
+</div>
+<div id="simulating-the-bundesliga" class="section level2">
+<h2>Simulating the Bundesliga</h2>
+<p>Now that we have a model for scoring goals, we can use it to predict outcomes of new matches. So we feed the model and the data for the matches that are still missing in the Bundesliga <code>buli1920_long_mis</code> into the <code>posterior_predict</code> function. We will just generate 3 draws from the posterior predictive distribution for the missing data.</p>
+<pre class="r"><code>n_sims &lt;- 3
+
+pp &lt;- posterior_predict(
+  poisson_glmm, 
+  newdata = buli1920_long_mis, 
+  draws = n_sims
+  )</code></pre>
+<p>The result is an array of dimension 3 (number of draws) by 164 (number of rows in <code>buli1920_long_mis</code> – remember that the data is in long format).</p>
+<p>This is not very handy, so let’s write a little helper function. It will take <em>one</em> row from this new array, transform into the long format we used above, add the data for all observed matches and return a big data frame for all matches (observed and simulated) in long format. This function also takes care of the fact that the predicted goals, <code>G</code>, for each team in each match is the predicted goals against, <code>GA</code>, for the other team in that match.</p>
+<pre class="r"><code>gen_dataset  &lt;- function(i){
+  bind_cols(buli1920_long_mis, G = pp[i,]) %&gt;% 
+    group_by(match_id) %&gt;% 
+    mutate(
+      FTR = if_else(diff(G) == 0, &quot;D&quot;, side[which.max(G)]),
+      GA = sum(G) - G
+      ) %&gt;%
+    bind_rows(buli1920_long_obs, .) %&gt;%
+    mutate(sim = i) %&gt;%
+    return()
+}</code></pre>
+<p>We can apply the function to our three posterior predictive draws and generate three whole seasons with observed and simulated data in long format.</p>
+</div>
+<div id="section" class="section level2 tabset">
+<h2></h2>
+<div id="simulation-1" class="section level3">
+<h3>Simulation 1</h3>
+<div id="htmlwidget-3" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-3">{"x":{"filter":"none","data":[["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54","55","56","57","58","59","60","61","62","63","64","65","66","67","68","69","70","71","72","73","74","75","76","77","78","79","80","81","82","83","84","85","86","87","88","89","90","91","92","93","94","95","96","97","98","99","100","101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","131","132","133","134","135","136","137","138","139","140","141","142","143","144","145","146","147","148","149","150","151","152","153","154","155","156","157","158","159","160","161","162","163","164","165","166","167","168","169","170","171","172","173","174","175","176","177","178","179","180","181","182","183","184","185","186","187","188","189","190","191","192","193","194","195","196","197","198","199","200","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224","225","226","227","228","229","230","231","232","233","234","235","236","237","238","239","240","241","242","243","244","245","246","247","248","249","250","251","252","253","254","255","256","257","258","259","260","261","262","263","264","265","266","267","268","269","270","271","272","273","274","275","276","277","278","279","280","281","282","283","284","285","286","287","288","289","290","291","292","293","294","295","296","297","298","299","300","301","302","303","304","305","306","307","308","309","310","311","312","313","314","315","316","317","318","319","320","321","322","323","324","325","326","327","328","329","330","331","332","333","334","335","336","337","338","339","340","341","342","343","344","345","346","347","348","349","350","351","352","353","354","355","356","357","358","359","360","361","362","363","364","365","366","367","368","369","370","371","372","373","374","375","376","377","378","379","380","381","382","383","384","385","386","387","388","389","390","391","392","393","394","395","396","397","398","399","400","401","402","403","404","405","406","407","408","409","410","411","412","413","414","415","416","417","418","419","420","421","422","423","424","425","426","427","428","429","430","431","432","433","434","435","436","437","438","439","440","441","442","443","444","445","446","447","448","449","450","451","452","453","454","455","456","457","458","459","460","461","462","463","464","465","466","467","468","469","470","471","472","473","474","475","476","477","478","479","480","481","482","483","484","485","486","487","488","489","490","491","492","493","494","495","496","497","498","499","500","501","502","503","504","505","506","507","508","509","510","511","512","513","514","515","516","517","518","519","520","521","522","523","524","525","526","527","528","529","530","531","532","533","534","535","536","537","538","539","540","541","542","543","544","545","546","547","548","549","550","551","552","553","554","555","556","557","558","559","560","561","562","563","564","565","566","567","568","569","570","571","572","573","574","575","576","577","578","579","580","581","582","583","584","585","586","587","588","589","590","591","592","593","594","595","596","597","598","599","600","601","602","603","604","605","606","607","608","609","610","611","612"],["2019-08-16","2019-08-16","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-18","2019-08-18","2019-08-18","2019-08-18","2019-08-23","2019-08-23","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-25","2019-08-25","2019-08-25","2019-08-25","2019-08-30","2019-08-30","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-09-01","2019-09-01","2019-09-01","2019-09-01","2019-09-13","2019-09-13","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-15","2019-09-15","2019-09-15","2019-09-15","2019-09-20","2019-09-20","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-22","2019-09-22","2019-09-22","2019-09-22","2019-09-23","2019-09-23","2019-09-27","2019-09-27","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-29","2019-09-29","2019-09-29","2019-09-29","2019-10-04","2019-10-04","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-06","2019-10-06","2019-10-06","2019-10-06","2019-10-06","2019-10-06","2019-10-18","2019-10-18","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-20","2019-10-20","2019-10-20","2019-10-20","2019-10-25","2019-10-25","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-27","2019-10-27","2019-10-27","2019-10-27","2019-11-01","2019-11-01","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-03","2019-11-03","2019-11-03","2019-11-03","2019-11-08","2019-11-08","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-10","2019-11-10","2019-11-10","2019-11-10","2019-11-10","2019-11-10","2019-11-22","2019-11-22","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-24","2019-11-24","2019-11-24","2019-11-24","2019-11-29","2019-11-29","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-12-01","2019-12-01","2019-12-01","2019-12-01","2019-12-02","2019-12-02","2019-12-06","2019-12-06","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-08","2019-12-08","2019-12-08","2019-12-08","2019-12-13","2019-12-13","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-15","2019-12-15","2019-12-15","2019-12-15","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-20","2019-12-20","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-22","2019-12-22","2019-12-22","2019-12-22","2020-01-17","2020-01-17","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-19","2020-01-19","2020-01-19","2020-01-19","2020-01-24","2020-01-24","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-26","2020-01-26","2020-01-26","2020-01-26","2020-01-31","2020-01-31","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-02","2020-02-02","2020-02-02","2020-02-02","2020-02-07","2020-02-07","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-09","2020-02-09","2020-02-14","2020-02-14","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-16","2020-02-16","2020-02-16","2020-02-16","2020-02-21","2020-02-21","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-23","2020-02-23","2020-02-23","2020-02-23","2020-02-24","2020-02-24","2020-02-28","2020-02-28","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-03-01","2020-03-01","2020-03-01","2020-03-01","2020-03-06","2020-03-06","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-08","2020-03-08","2020-03-08","2020-03-08","2020-03-11","2020-03-11",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],["D","D","H","H","H","H","H","H","A","A","H","H","D","D","H","H","A","A","A","A","D","D","A","A","H","H","A","A","A","A","A","A","H","H","A","A","A","A","H","H","A","A","D","D","H","H","D","D","H","H","H","H","H","H","D","D","H","H","H","H","A","A","H","H","A","A","D","D","A","A","A","A","H","H","H","H","D","D","H","H","H","H","A","A","H","H","D","D","D","D","A","A","A","A","A","A","A","A","A","A","A","A","D","D","A","A","A","A","H","H","A","A","D","D","D","D","A","A","D","D","H","H","H","H","D","D","H","H","D","D","H","H","D","D","H","H","D","D","H","H","H","H","H","H","H","H","H","H","H","H","A","A","H","H","D","D","D","D","D","D","H","H","H","H","H","H","H","H","A","A","H","H","D","D","H","H","H","H","A","A","A","A","A","A","A","A","A","A","D","D","H","H","H","H","A","A","H","H","D","D","A","A","A","A","D","D","H","H","A","A","H","H","H","H","A","A","H","H","D","D","A","A","D","D","A","A","A","A","H","H","A","A","H","H","D","D","H","H","H","H","H","H","H","H","H","H","H","H","H","H","A","A","A","A","H","H","H","H","H","H","A","A","D","D","A","A","H","H","H","H","A","A","H","H","D","D","A","A","A","A","A","A","A","A","H","H","D","D","H","H","H","H","H","H","A","A","H","H","D","D","D","D","H","H","H","H","H","H","A","A","H","H","A","A","A","A","A","A","H","H","A","A","A","A","H","H","H","H","A","A","H","H","H","H","A","A","H","H","A","A","H","H","D","D","H","H","H","H","D","D","H","H","A","A","D","D","H","H","A","A","H","H","H","H","A","A","D","D","A","A","D","D","H","H","D","D","H","H","D","D","A","A","A","A","H","H","A","A","A","A","A","A","D","D","H","H","A","A","A","A","D","D","A","A","A","A","H","H","H","H","A","A","D","D","A","A","H","H","A","A","H","H","H","H","D","D","D","D","A","A","H","H","D","D","H","H","D","D","D","D","A","A","H","H","D","D","H","H","D","D","A","A","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","H","A","A","H","H","H","H","A","A","H","H","D","D","H","H","H","H","A","A","D","D","A","A","H","H","D","D","D","D","H","H","D","D","D","D","H","H","A","A","A","A","A","A","D","D","A","A","A","A","A","A","A","A","H","H","H","H","A","A","H","H","H","H","A","A","D","D","H","H","D","D","A","A","A","A","H","H","D","D","D","D","H","H","H","H","H","H","H","H","H","H","D","D","H","H","H","H","H","H","A","A","H","H","D","D","A","A","A","A","H","H","A","A","H","H","H","H","D","D","D","D","D","D","H","H","H","H","A","A","A","A","A","A","D","D","A","A","A","A","H","H"],[1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13,14,14,15,15,16,16,17,17,18,18,19,19,20,20,21,21,22,22,23,23,24,24,25,25,26,26,27,27,28,28,29,29,30,30,31,31,32,32,33,33,34,34,35,35,36,36,37,37,38,38,39,39,40,40,41,41,42,42,43,43,44,44,45,45,46,46,47,47,48,48,49,49,50,50,51,51,52,52,53,53,54,54,55,55,56,56,57,57,58,58,59,59,60,60,61,61,62,62,63,63,64,64,65,65,66,66,67,67,68,68,69,69,70,70,71,71,72,72,73,73,74,74,75,75,76,76,77,77,78,78,79,79,80,80,81,81,82,82,83,83,84,84,85,85,86,86,87,87,88,88,89,89,90,90,91,91,92,92,93,93,94,94,95,95,96,96,97,97,98,98,99,99,100,100,101,101,102,102,103,103,104,104,105,105,106,106,107,107,108,108,109,109,110,110,111,111,112,112,113,113,114,114,115,115,116,116,117,117,118,118,119,119,120,120,121,121,122,122,123,123,124,124,125,125,126,126,127,127,128,128,129,129,130,130,131,131,132,132,133,133,134,134,135,135,136,136,137,137,138,138,139,139,140,140,141,141,142,142,143,143,144,144,145,145,146,146,147,147,148,148,149,149,150,150,151,151,152,152,153,153,154,154,155,155,156,156,157,157,158,158,159,159,160,160,161,161,162,162,163,163,164,164,165,165,166,166,167,167,168,168,169,169,170,170,171,171,172,172,173,173,174,174,175,175,176,176,177,177,178,178,179,179,180,180,181,181,182,182,183,183,184,184,185,185,186,186,187,187,188,188,189,189,190,190,191,191,192,192,193,193,194,194,195,195,196,196,197,197,198,198,199,199,200,200,201,201,202,202,203,203,204,204,205,205,206,206,207,207,208,208,209,209,210,210,211,211,212,212,213,213,214,214,215,215,216,216,217,217,218,218,219,219,220,220,221,221,222,222,223,223,224,224,225,225,226,226,227,227,228,228,229,229,230,230,231,231,232,232,233,233,234,234,235,235,236,236,237,237,238,238,239,239,240,240,241,241,242,242,243,243,244,244,245,245,246,246,247,247,248,248,249,249,250,250,251,251,252,252,253,253,254,254,255,255,256,256,257,257,258,258,259,259,260,260,261,261,262,262,263,263,264,264,265,265,266,266,267,267,268,268,269,269,270,270,271,271,272,272,273,273,274,274,275,275,276,276,277,277,278,278,279,279,280,280,281,281,282,282,283,283,284,284,285,285,286,286,287,287,288,288,289,289,290,290,291,291,292,292,293,293,294,294,295,295,296,296,297,297,298,298,299,299,300,300,301,301,302,302,303,303,304,304,305,305,306,306],["H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A"],["Bayern Munich","Hertha","Dortmund","Augsburg","Freiburg","Mainz","Leverkusen","Paderborn","Werder Bremen","Fortuna Dusseldorf","Wolfsburg","FC Koln","M'gladbach","Schalke 04","Ein Frankfurt","Hoffenheim","Union Berlin","RB Leipzig","FC Koln","Dortmund","Augsburg","Union Berlin","Fortuna Dusseldorf","Leverkusen","Hoffenheim","Werder Bremen","Mainz","M'gladbach","Paderborn","Freiburg","Schalke 04","Bayern Munich","RB Leipzig","Ein Frankfurt","Hertha","Wolfsburg","M'gladbach","RB Leipzig","Bayern Munich","Mainz","Freiburg","FC Koln","Leverkusen","Hoffenheim","Schalke 04","Hertha","Wolfsburg","Paderborn","Union Berlin","Dortmund","Werder Bremen","Augsburg","Ein Frankfurt","Fortuna Dusseldorf","Fortuna Dusseldorf","Wolfsburg","Augsburg","Ein Frankfurt","Dortmund","Leverkusen","FC Koln","M'gladbach","Mainz","Hertha","Union Berlin","Werder Bremen","RB Leipzig","Bayern Munich","Hoffenheim","Freiburg","Paderborn","Schalke 04","Schalke 04","Mainz","Bayern Munich","FC Koln","Freiburg","Augsburg","Hertha","Paderborn","Leverkusen","Union Berlin","Werder Bremen","RB Leipzig","M'gladbach","Fortuna Dusseldorf","Ein Frankfurt","Dortmund","Wolfsburg","Hoffenheim","Union Berlin","Ein Frankfurt","Augsburg","Leverkusen","Hoffenheim","M'gladbach","Mainz","Wolfsburg","Paderborn","Bayern Munich","RB Leipzig","Schalke 04","Dortmund","Werder Bremen","Fortuna Dusseldorf","Freiburg","FC Koln","Hertha","Hertha","Fortuna Dusseldorf","Bayern Munich","Hoffenheim","Freiburg","Dortmund","Leverkusen","RB Leipzig","Paderborn","Mainz","Schalke 04","FC Koln","M'gladbach","Augsburg","Wolfsburg","Union Berlin","Ein Frankfurt","Werder Bremen","Ein Frankfurt","Leverkusen","Augsburg","Bayern Munich","Fortuna Dusseldorf","Mainz","RB Leipzig","Wolfsburg","Union Berlin","Freiburg","Werder Bremen","Hertha","Dortmund","M'gladbach","FC Koln","Paderborn","Hoffenheim","Schalke 04","Mainz","FC Koln","Bayern Munich","Union Berlin","Freiburg","RB Leipzig","Hertha","Hoffenheim","Paderborn","Fortuna Dusseldorf","Schalke 04","Dortmund","Leverkusen","Werder Bremen","Wolfsburg","Augsburg","M'gladbach","Ein Frankfurt","Hoffenheim","Paderborn","Dortmund","Wolfsburg","Ein Frankfurt","Bayern Munich","Leverkusen","M'gladbach","RB Leipzig","Mainz","Werder Bremen","Freiburg","Union Berlin","Hertha","Fortuna Dusseldorf","FC Koln","Augsburg","Schalke 04","FC Koln","Hoffenheim","Hertha","RB Leipzig","Mainz","Union Berlin","Paderborn","Augsburg","Schalke 04","Fortuna Dusseldorf","Bayern Munich","Dortmund","M'gladbach","Werder Bremen","Wolfsburg","Leverkusen","Freiburg","Ein Frankfurt","Dortmund","Paderborn","Ein Frankfurt","Wolfsburg","Fortuna Dusseldorf","Bayern Munich","Leverkusen","Freiburg","Union Berlin","M'gladbach","Werder Bremen","Schalke 04","RB Leipzig","FC Koln","Augsburg","Hertha","Hoffenheim","Mainz","Schalke 04","Union Berlin","FC Koln","Augsburg","Hertha","Dortmund","Hoffenheim","Fortuna Dusseldorf","Paderborn","RB Leipzig","Bayern Munich","Leverkusen","M'gladbach","Freiburg","Wolfsburg","Werder Bremen","Mainz","Ein Frankfurt","Ein Frankfurt","Hertha","Augsburg","Mainz","Dortmund","Fortuna Dusseldorf","Freiburg","Wolfsburg","M'gladbach","Bayern Munich","RB Leipzig","Hoffenheim","Leverkusen","Schalke 04","Union Berlin","FC Koln","Werder Bremen","Paderborn","Hoffenheim","Augsburg","Bayern Munich","Werder Bremen","FC Koln","Leverkusen","Hertha","Freiburg","Mainz","Dortmund","Paderborn","Union Berlin","Fortuna Dusseldorf","RB Leipzig","Wolfsburg","M'gladbach","Schalke 04","Ein Frankfurt","Werder Bremen","Mainz","Augsburg","Fortuna Dusseldorf","Dortmund","RB Leipzig","Union Berlin","Hoffenheim","Leverkusen","Hertha","Ein Frankfurt","FC Koln","Freiburg","Bayern Munich","M'gladbach","Paderborn","Wolfsburg","Schalke 04","Hoffenheim","Dortmund","Bayern Munich","Wolfsburg","FC Koln","Werder Bremen","Mainz","Leverkusen","RB Leipzig","Augsburg","Schalke 04","Freiburg","Hertha","M'gladbach","Fortuna Dusseldorf","Union Berlin","Paderborn","Ein Frankfurt","Schalke 04","M'gladbach","Augsburg","Dortmund","FC Koln","Wolfsburg","Fortuna Dusseldorf","Werder Bremen","Hoffenheim","Ein Frankfurt","Mainz","Freiburg","RB Leipzig","Union Berlin","Hertha","Bayern Munich","Paderborn","Leverkusen","Dortmund","FC Koln","Ein Frankfurt","RB Leipzig","Freiburg","Paderborn","M'gladbach","Mainz","Union Berlin","Augsburg","Wolfsburg","Hertha","Bayern Munich","Schalke 04","Werder Bremen","Hoffenheim","Leverkusen","Fortuna Dusseldorf","Hertha","Schalke 04","Augsburg","Werder Bremen","Dortmund","Union Berlin","Fortuna Dusseldorf","Ein Frankfurt","Hoffenheim","Leverkusen","Mainz","Bayern Munich","RB Leipzig","M'gladbach","FC Koln","Freiburg","Paderborn","Wolfsburg","Ein Frankfurt","Augsburg","Freiburg","Hoffenheim","Hertha","Mainz","Schalke 04","Paderborn","Werder Bremen","Union Berlin","Wolfsburg","Fortuna Dusseldorf","Leverkusen","Dortmund","Bayern Munich","RB Leipzig","Dortmund","Ein Frankfurt","Augsburg","Freiburg","Hoffenheim","Wolfsburg","Paderborn","Hertha","RB Leipzig","Werder Bremen","Union Berlin","Leverkusen","Fortuna Dusseldorf","M'gladbach","FC Koln","Bayern Munich","Mainz","Schalke 04","Bayern Munich","Paderborn","Freiburg","Fortuna Dusseldorf","Hertha","FC Koln","M'gladbach","Hoffenheim","Werder Bremen","Dortmund","Schalke 04","RB Leipzig","Leverkusen","Augsburg","Wolfsburg","Mainz","Ein Frankfurt","Union Berlin","Fortuna Dusseldorf","Hertha","Augsburg","M'gladbach","Dortmund","Freiburg","Hoffenheim","Bayern Munich","Mainz","Paderborn","FC Koln","Schalke 04","Union Berlin","Wolfsburg","RB Leipzig","Leverkusen","Paderborn","FC Koln","Freiburg","Union Berlin","Hertha","Werder Bremen","Leverkusen","Ein Frankfurt","Schalke 04","Hoffenheim","Wolfsburg","RB Leipzig","M'gladbach","Dortmund","Bayern Munich","Augsburg","Mainz","Fortuna Dusseldorf","M'gladbach","FC Koln","Augsburg","FC Koln","Augsburg","Hoffenheim","Augsburg","Paderborn","Augsburg","RB Leipzig","Augsburg","Wolfsburg","Bayern Munich","Ein Frankfurt","Bayern Munich","Fortuna Dusseldorf","Bayern Munich","Freiburg","Bayern Munich","M'gladbach","Dortmund","Bayern Munich","Dortmund","Hertha","Dortmund","Hoffenheim","Dortmund","Mainz","Dortmund","Schalke 04","Ein Frankfurt","Freiburg","Ein Frankfurt","M'gladbach","Ein Frankfurt","Mainz","Ein Frankfurt","Paderborn","Ein Frankfurt","Schalke 04","FC Koln","Ein Frankfurt","FC Koln","Fortuna Dusseldorf","FC Koln","Mainz","FC Koln","RB Leipzig","FC Koln","Union Berlin","Fortuna Dusseldorf","Augsburg","Fortuna Dusseldorf","Dortmund","Fortuna Dusseldorf","Hoffenheim","Fortuna Dusseldorf","Paderborn","Fortuna Dusseldorf","Schalke 04","Freiburg","Hertha","Freiburg","Leverkusen","Freiburg","M'gladbach","Freiburg","Schalke 04","Freiburg","Werder Bremen","Hertha","Augsburg","Hertha","Ein Frankfurt","Hertha","Leverkusen","Hertha","Union Berlin","Hoffenheim","FC Koln","Hoffenheim","Hertha","Hoffenheim","RB Leipzig","Hoffenheim","Union Berlin","Leverkusen","Bayern Munich","Leverkusen","FC Koln","Leverkusen","Mainz","Leverkusen","Wolfsburg","M'gladbach","Hertha","M'gladbach","Leverkusen","M'gladbach","Union Berlin","M'gladbach","Wolfsburg","Mainz","Augsburg","Mainz","Hoffenheim","Mainz","RB Leipzig","Mainz","Werder Bremen","Paderborn","Dortmund","Paderborn","Hoffenheim","Paderborn","M'gladbach","Paderborn","Werder Bremen","RB Leipzig","Dortmund","RB Leipzig","Fortuna Dusseldorf","RB Leipzig","Freiburg","RB Leipzig","Hertha","RB Leipzig","Paderborn","Schalke 04","Augsburg","Schalke 04","Leverkusen","Schalke 04","Werder Bremen","Schalke 04","Wolfsburg","Union Berlin","Bayern Munich","Union Berlin","Fortuna Dusseldorf","Union Berlin","Mainz","Union Berlin","Paderborn","Union Berlin","Schalke 04","Werder Bremen","Bayern Munich","Werder Bremen","Ein Frankfurt","Werder Bremen","FC Koln","Werder Bremen","Leverkusen","Werder Bremen","M'gladbach","Werder Bremen","Wolfsburg","Wolfsburg","Bayern Munich","Wolfsburg","Dortmund","Wolfsburg","Ein Frankfurt","Wolfsburg","Freiburg"],[2,2,5,1,3,0,3,2,1,3,2,1,0,0,1,0,0,4,1,3,1,1,1,3,3,2,1,3,1,3,0,3,2,1,0,3,1,3,6,1,1,2,0,0,3,0,1,1,3,1,3,2,2,1,1,1,2,1,4,0,0,1,2,1,1,2,1,1,0,3,1,5,2,1,4,0,1,1,2,1,2,0,0,3,2,1,2,2,1,1,1,2,0,3,0,3,0,1,2,3,1,3,2,2,1,2,0,4,3,1,1,2,2,2,1,1,1,2,1,1,5,1,1,0,2,2,3,0,2,2,1,0,1,1,2,0,1,1,1,0,3,0,2,0,3,1,2,1,2,1,2,3,2,0,0,0,2,2,0,0,4,2,3,0,3,0,5,1,1,2,8,0,2,2,1,0,2,0,2,3,1,2,2,4,2,3,0,1,3,3,4,0,3,1,0,2,1,0,3,3,0,2,0,4,1,1,2,0,1,2,4,1,4,0,1,5,2,1,1,1,1,2,1,1,2,3,1,2,4,2,2,3,2,1,2,2,2,1,5,0,1,0,2,1,3,1,2,1,2,0,0,1,2,4,6,1,2,0,1,0,0,4,1,1,0,3,2,1,1,0,0,5,3,0,3,3,0,2,0,1,2,4,1,3,2,0,1,1,2,1,2,0,1,0,0,1,3,1,2,2,0,0,2,1,2,1,2,0,3,5,3,1,0,1,1,2,1,2,3,1,0,4,1,4,5,1,2,0,0,2,3,1,2,0,1,2,5,0,0,3,3,0,0,0,2,1,5,0,1,1,2,1,1,3,2,2,4,0,2,4,5,0,1,0,1,3,1,1,0,2,1,1,4,3,0,0,4,0,1,1,2,3,1,2,3,0,2,3,1,4,1,4,0,0,3,2,0,2,0,5,1,1,0,2,0,5,2,0,4,0,1,2,3,3,2,3,1,0,0,6,2,0,3,0,2,2,1,1,1,2,3,1,2,2,4,0,1,1,0,0,1,2,2,0,1,1,2,1,4,4,2,3,3,0,4,2,3,2,4,3,8,0,6,0,3,2,3,1,6,1,7,4,3,4,3,2,5,0,0,3,4,0,4,4,3,1,4,1,1,2,3,3,1,2,3,2,1,1,3,3,3,0,1,1,1,1,2,1,1,6,1,2,1,2,0,0,1,2,0,4,3,4,1,3,2,1,3,0,2,4,6,3,2,1,1,3,1,1,6,2,2,2,5,6,1,3,3,1,1,1,2,2,4,0,1,0,2,1,4,0,1,0,2,2,8,1,4,0,3,0,1,4,2,0,1,1,1,2,3,4,2,1,2,3,2,1,3,2,2,2,1,1,5,5,3,1,3,2,0,4,1,6,1,4,3,3,1,6,2,5,2,1],[2,2,1,5,0,3,2,3,3,1,1,2,0,0,0,1,4,0,3,1,1,1,3,1,2,3,3,1,3,1,3,0,1,2,3,0,3,1,1,6,2,1,0,0,0,3,1,1,1,3,2,3,1,2,1,1,1,2,0,4,1,0,1,2,2,1,1,1,3,0,5,1,1,2,0,4,1,1,1,2,0,2,3,0,1,2,2,2,1,1,2,1,3,0,3,0,1,0,3,2,3,1,2,2,2,1,4,0,1,3,2,1,2,2,1,1,2,1,1,1,1,5,0,1,2,2,0,3,2,2,0,1,1,1,0,2,1,1,0,1,0,3,0,2,1,3,1,2,1,2,3,2,0,2,0,0,2,2,0,0,2,4,0,3,0,3,1,5,2,1,0,8,2,2,0,1,0,2,3,2,2,1,4,2,3,2,1,0,3,3,0,4,1,3,2,0,0,1,3,3,2,0,4,0,1,1,0,2,2,1,1,4,0,4,5,1,1,2,1,1,2,1,1,1,3,2,2,1,2,4,3,2,1,2,2,2,1,2,0,5,0,1,1,2,1,3,1,2,0,2,1,0,4,2,1,6,0,2,0,1,4,0,1,1,3,0,1,2,0,1,5,0,0,3,3,3,2,0,1,0,4,2,3,1,0,2,1,1,1,2,0,2,0,1,1,0,1,3,2,2,0,0,1,2,1,2,0,2,5,3,1,3,1,0,2,1,2,1,1,3,4,0,4,1,1,5,0,2,2,0,1,3,0,2,2,1,0,5,3,0,0,3,0,0,1,2,0,5,1,1,1,2,3,1,2,2,0,4,4,2,0,5,0,1,3,1,1,1,2,0,1,1,3,4,0,0,0,4,1,1,3,2,2,1,0,3,3,2,4,1,4,1,0,0,2,3,2,0,5,0,1,1,2,0,5,0,0,2,0,4,2,1,3,3,3,2,0,1,6,0,0,2,0,3,2,2,1,1,2,1,1,3,2,2,0,4,1,1,0,0,2,1,0,2,1,1,1,2,4,4,3,2,0,3,2,4,2,3,3,4,0,8,0,6,2,3,1,3,1,6,4,7,4,3,2,3,0,5,3,0,0,4,4,4,1,3,1,4,2,1,3,3,2,1,2,3,1,1,3,3,0,3,1,1,1,1,1,2,6,1,2,1,2,1,0,0,2,1,4,0,4,3,3,1,1,2,0,3,4,2,3,6,1,2,3,1,1,1,2,6,2,2,6,5,3,1,1,3,1,1,2,2,0,4,0,1,1,2,0,4,0,1,2,2,1,8,0,4,0,3,4,1,0,2,1,1,2,1,4,3,1,2,3,2,1,2,2,3,2,2,1,1,5,5,1,3,2,3,4,0,6,1,4,1,3,3,6,1,5,2,1,2],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>Date<\/th>\n      <th>FTR<\/th>\n      <th>match_id<\/th>\n      <th>side<\/th>\n      <th>team<\/th>\n      <th>G<\/th>\n      <th>GA<\/th>\n      <th>sim<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":6,"columnDefs":[{"className":"dt-right","targets":[3,6,7,8]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[6,10,25,50,100]}},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="simulation-2" class="section level3">
+<h3>Simulation 2</h3>
+<div id="htmlwidget-4" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-4">{"x":{"filter":"none","data":[["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54","55","56","57","58","59","60","61","62","63","64","65","66","67","68","69","70","71","72","73","74","75","76","77","78","79","80","81","82","83","84","85","86","87","88","89","90","91","92","93","94","95","96","97","98","99","100","101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","131","132","133","134","135","136","137","138","139","140","141","142","143","144","145","146","147","148","149","150","151","152","153","154","155","156","157","158","159","160","161","162","163","164","165","166","167","168","169","170","171","172","173","174","175","176","177","178","179","180","181","182","183","184","185","186","187","188","189","190","191","192","193","194","195","196","197","198","199","200","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224","225","226","227","228","229","230","231","232","233","234","235","236","237","238","239","240","241","242","243","244","245","246","247","248","249","250","251","252","253","254","255","256","257","258","259","260","261","262","263","264","265","266","267","268","269","270","271","272","273","274","275","276","277","278","279","280","281","282","283","284","285","286","287","288","289","290","291","292","293","294","295","296","297","298","299","300","301","302","303","304","305","306","307","308","309","310","311","312","313","314","315","316","317","318","319","320","321","322","323","324","325","326","327","328","329","330","331","332","333","334","335","336","337","338","339","340","341","342","343","344","345","346","347","348","349","350","351","352","353","354","355","356","357","358","359","360","361","362","363","364","365","366","367","368","369","370","371","372","373","374","375","376","377","378","379","380","381","382","383","384","385","386","387","388","389","390","391","392","393","394","395","396","397","398","399","400","401","402","403","404","405","406","407","408","409","410","411","412","413","414","415","416","417","418","419","420","421","422","423","424","425","426","427","428","429","430","431","432","433","434","435","436","437","438","439","440","441","442","443","444","445","446","447","448","449","450","451","452","453","454","455","456","457","458","459","460","461","462","463","464","465","466","467","468","469","470","471","472","473","474","475","476","477","478","479","480","481","482","483","484","485","486","487","488","489","490","491","492","493","494","495","496","497","498","499","500","501","502","503","504","505","506","507","508","509","510","511","512","513","514","515","516","517","518","519","520","521","522","523","524","525","526","527","528","529","530","531","532","533","534","535","536","537","538","539","540","541","542","543","544","545","546","547","548","549","550","551","552","553","554","555","556","557","558","559","560","561","562","563","564","565","566","567","568","569","570","571","572","573","574","575","576","577","578","579","580","581","582","583","584","585","586","587","588","589","590","591","592","593","594","595","596","597","598","599","600","601","602","603","604","605","606","607","608","609","610","611","612"],["2019-08-16","2019-08-16","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-18","2019-08-18","2019-08-18","2019-08-18","2019-08-23","2019-08-23","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-25","2019-08-25","2019-08-25","2019-08-25","2019-08-30","2019-08-30","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-09-01","2019-09-01","2019-09-01","2019-09-01","2019-09-13","2019-09-13","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-15","2019-09-15","2019-09-15","2019-09-15","2019-09-20","2019-09-20","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-22","2019-09-22","2019-09-22","2019-09-22","2019-09-23","2019-09-23","2019-09-27","2019-09-27","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-29","2019-09-29","2019-09-29","2019-09-29","2019-10-04","2019-10-04","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-06","2019-10-06","2019-10-06","2019-10-06","2019-10-06","2019-10-06","2019-10-18","2019-10-18","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-20","2019-10-20","2019-10-20","2019-10-20","2019-10-25","2019-10-25","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-27","2019-10-27","2019-10-27","2019-10-27","2019-11-01","2019-11-01","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-03","2019-11-03","2019-11-03","2019-11-03","2019-11-08","2019-11-08","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-10","2019-11-10","2019-11-10","2019-11-10","2019-11-10","2019-11-10","2019-11-22","2019-11-22","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-24","2019-11-24","2019-11-24","2019-11-24","2019-11-29","2019-11-29","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-12-01","2019-12-01","2019-12-01","2019-12-01","2019-12-02","2019-12-02","2019-12-06","2019-12-06","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-08","2019-12-08","2019-12-08","2019-12-08","2019-12-13","2019-12-13","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-15","2019-12-15","2019-12-15","2019-12-15","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-20","2019-12-20","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-22","2019-12-22","2019-12-22","2019-12-22","2020-01-17","2020-01-17","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-19","2020-01-19","2020-01-19","2020-01-19","2020-01-24","2020-01-24","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-26","2020-01-26","2020-01-26","2020-01-26","2020-01-31","2020-01-31","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-02","2020-02-02","2020-02-02","2020-02-02","2020-02-07","2020-02-07","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-09","2020-02-09","2020-02-14","2020-02-14","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-16","2020-02-16","2020-02-16","2020-02-16","2020-02-21","2020-02-21","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-23","2020-02-23","2020-02-23","2020-02-23","2020-02-24","2020-02-24","2020-02-28","2020-02-28","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-03-01","2020-03-01","2020-03-01","2020-03-01","2020-03-06","2020-03-06","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-08","2020-03-08","2020-03-08","2020-03-08","2020-03-11","2020-03-11",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],["D","D","H","H","H","H","H","H","A","A","H","H","D","D","H","H","A","A","A","A","D","D","A","A","H","H","A","A","A","A","A","A","H","H","A","A","A","A","H","H","A","A","D","D","H","H","D","D","H","H","H","H","H","H","D","D","H","H","H","H","A","A","H","H","A","A","D","D","A","A","A","A","H","H","H","H","D","D","H","H","H","H","A","A","H","H","D","D","D","D","A","A","A","A","A","A","A","A","A","A","A","A","D","D","A","A","A","A","H","H","A","A","D","D","D","D","A","A","D","D","H","H","H","H","D","D","H","H","D","D","H","H","D","D","H","H","D","D","H","H","H","H","H","H","H","H","H","H","H","H","A","A","H","H","D","D","D","D","D","D","H","H","H","H","H","H","H","H","A","A","H","H","D","D","H","H","H","H","A","A","A","A","A","A","A","A","A","A","D","D","H","H","H","H","A","A","H","H","D","D","A","A","A","A","D","D","H","H","A","A","H","H","H","H","A","A","H","H","D","D","A","A","D","D","A","A","A","A","H","H","A","A","H","H","D","D","H","H","H","H","H","H","H","H","H","H","H","H","H","H","A","A","A","A","H","H","H","H","H","H","A","A","D","D","A","A","H","H","H","H","A","A","H","H","D","D","A","A","A","A","A","A","A","A","H","H","D","D","H","H","H","H","H","H","A","A","H","H","D","D","D","D","H","H","H","H","H","H","A","A","H","H","A","A","A","A","A","A","H","H","A","A","A","A","H","H","H","H","A","A","H","H","H","H","A","A","H","H","A","A","H","H","D","D","H","H","H","H","D","D","H","H","A","A","D","D","H","H","A","A","H","H","H","H","A","A","D","D","A","A","D","D","H","H","D","D","H","H","D","D","A","A","A","A","H","H","A","A","A","A","A","A","D","D","H","H","A","A","A","A","D","D","A","A","A","A","H","H","H","H","A","A","D","D","A","A","H","H","A","A","H","H","H","H","D","D","D","D","A","A","H","H","D","D","H","H","D","D","D","D","A","A","H","H","D","D","H","H","D","D","H","H","A","A","D","D","A","A","H","H","D","D","A","A","H","H","H","H","H","H","H","H","H","H","H","H","H","H","A","A","D","D","D","D","A","A","H","H","H","H","H","H","H","H","A","A","H","H","A","A","D","D","A","A","D","D","A","A","H","H","A","A","H","H","A","A","D","D","D","D","A","A","A","A","D","D","A","A","A","A","A","A","D","D","H","H","H","H","H","H","H","H","A","A","A","A","D","D","D","D","H","H","A","A","H","H","A","A","H","H","A","A","D","D","A","A","H","H","H","H","A","A","H","H","A","A","H","H","A","A","H","H","H","H","D","D","D","D","A","A","A","A","A","A","A","A","A","A","A","A","D","D","A","A","H","H","A","A","A","A","H","H"],[1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13,14,14,15,15,16,16,17,17,18,18,19,19,20,20,21,21,22,22,23,23,24,24,25,25,26,26,27,27,28,28,29,29,30,30,31,31,32,32,33,33,34,34,35,35,36,36,37,37,38,38,39,39,40,40,41,41,42,42,43,43,44,44,45,45,46,46,47,47,48,48,49,49,50,50,51,51,52,52,53,53,54,54,55,55,56,56,57,57,58,58,59,59,60,60,61,61,62,62,63,63,64,64,65,65,66,66,67,67,68,68,69,69,70,70,71,71,72,72,73,73,74,74,75,75,76,76,77,77,78,78,79,79,80,80,81,81,82,82,83,83,84,84,85,85,86,86,87,87,88,88,89,89,90,90,91,91,92,92,93,93,94,94,95,95,96,96,97,97,98,98,99,99,100,100,101,101,102,102,103,103,104,104,105,105,106,106,107,107,108,108,109,109,110,110,111,111,112,112,113,113,114,114,115,115,116,116,117,117,118,118,119,119,120,120,121,121,122,122,123,123,124,124,125,125,126,126,127,127,128,128,129,129,130,130,131,131,132,132,133,133,134,134,135,135,136,136,137,137,138,138,139,139,140,140,141,141,142,142,143,143,144,144,145,145,146,146,147,147,148,148,149,149,150,150,151,151,152,152,153,153,154,154,155,155,156,156,157,157,158,158,159,159,160,160,161,161,162,162,163,163,164,164,165,165,166,166,167,167,168,168,169,169,170,170,171,171,172,172,173,173,174,174,175,175,176,176,177,177,178,178,179,179,180,180,181,181,182,182,183,183,184,184,185,185,186,186,187,187,188,188,189,189,190,190,191,191,192,192,193,193,194,194,195,195,196,196,197,197,198,198,199,199,200,200,201,201,202,202,203,203,204,204,205,205,206,206,207,207,208,208,209,209,210,210,211,211,212,212,213,213,214,214,215,215,216,216,217,217,218,218,219,219,220,220,221,221,222,222,223,223,224,224,225,225,226,226,227,227,228,228,229,229,230,230,231,231,232,232,233,233,234,234,235,235,236,236,237,237,238,238,239,239,240,240,241,241,242,242,243,243,244,244,245,245,246,246,247,247,248,248,249,249,250,250,251,251,252,252,253,253,254,254,255,255,256,256,257,257,258,258,259,259,260,260,261,261,262,262,263,263,264,264,265,265,266,266,267,267,268,268,269,269,270,270,271,271,272,272,273,273,274,274,275,275,276,276,277,277,278,278,279,279,280,280,281,281,282,282,283,283,284,284,285,285,286,286,287,287,288,288,289,289,290,290,291,291,292,292,293,293,294,294,295,295,296,296,297,297,298,298,299,299,300,300,301,301,302,302,303,303,304,304,305,305,306,306],["H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A"],["Bayern Munich","Hertha","Dortmund","Augsburg","Freiburg","Mainz","Leverkusen","Paderborn","Werder Bremen","Fortuna Dusseldorf","Wolfsburg","FC Koln","M'gladbach","Schalke 04","Ein Frankfurt","Hoffenheim","Union Berlin","RB Leipzig","FC Koln","Dortmund","Augsburg","Union Berlin","Fortuna Dusseldorf","Leverkusen","Hoffenheim","Werder Bremen","Mainz","M'gladbach","Paderborn","Freiburg","Schalke 04","Bayern Munich","RB Leipzig","Ein Frankfurt","Hertha","Wolfsburg","M'gladbach","RB Leipzig","Bayern Munich","Mainz","Freiburg","FC Koln","Leverkusen","Hoffenheim","Schalke 04","Hertha","Wolfsburg","Paderborn","Union Berlin","Dortmund","Werder Bremen","Augsburg","Ein Frankfurt","Fortuna Dusseldorf","Fortuna Dusseldorf","Wolfsburg","Augsburg","Ein Frankfurt","Dortmund","Leverkusen","FC Koln","M'gladbach","Mainz","Hertha","Union Berlin","Werder Bremen","RB Leipzig","Bayern Munich","Hoffenheim","Freiburg","Paderborn","Schalke 04","Schalke 04","Mainz","Bayern Munich","FC Koln","Freiburg","Augsburg","Hertha","Paderborn","Leverkusen","Union Berlin","Werder Bremen","RB Leipzig","M'gladbach","Fortuna Dusseldorf","Ein Frankfurt","Dortmund","Wolfsburg","Hoffenheim","Union Berlin","Ein Frankfurt","Augsburg","Leverkusen","Hoffenheim","M'gladbach","Mainz","Wolfsburg","Paderborn","Bayern Munich","RB Leipzig","Schalke 04","Dortmund","Werder Bremen","Fortuna Dusseldorf","Freiburg","FC Koln","Hertha","Hertha","Fortuna Dusseldorf","Bayern Munich","Hoffenheim","Freiburg","Dortmund","Leverkusen","RB Leipzig","Paderborn","Mainz","Schalke 04","FC Koln","M'gladbach","Augsburg","Wolfsburg","Union Berlin","Ein Frankfurt","Werder Bremen","Ein Frankfurt","Leverkusen","Augsburg","Bayern Munich","Fortuna Dusseldorf","Mainz","RB Leipzig","Wolfsburg","Union Berlin","Freiburg","Werder Bremen","Hertha","Dortmund","M'gladbach","FC Koln","Paderborn","Hoffenheim","Schalke 04","Mainz","FC Koln","Bayern Munich","Union Berlin","Freiburg","RB Leipzig","Hertha","Hoffenheim","Paderborn","Fortuna Dusseldorf","Schalke 04","Dortmund","Leverkusen","Werder Bremen","Wolfsburg","Augsburg","M'gladbach","Ein Frankfurt","Hoffenheim","Paderborn","Dortmund","Wolfsburg","Ein Frankfurt","Bayern Munich","Leverkusen","M'gladbach","RB Leipzig","Mainz","Werder Bremen","Freiburg","Union Berlin","Hertha","Fortuna Dusseldorf","FC Koln","Augsburg","Schalke 04","FC Koln","Hoffenheim","Hertha","RB Leipzig","Mainz","Union Berlin","Paderborn","Augsburg","Schalke 04","Fortuna Dusseldorf","Bayern Munich","Dortmund","M'gladbach","Werder Bremen","Wolfsburg","Leverkusen","Freiburg","Ein Frankfurt","Dortmund","Paderborn","Ein Frankfurt","Wolfsburg","Fortuna Dusseldorf","Bayern Munich","Leverkusen","Freiburg","Union Berlin","M'gladbach","Werder Bremen","Schalke 04","RB Leipzig","FC Koln","Augsburg","Hertha","Hoffenheim","Mainz","Schalke 04","Union Berlin","FC Koln","Augsburg","Hertha","Dortmund","Hoffenheim","Fortuna Dusseldorf","Paderborn","RB Leipzig","Bayern Munich","Leverkusen","M'gladbach","Freiburg","Wolfsburg","Werder Bremen","Mainz","Ein Frankfurt","Ein Frankfurt","Hertha","Augsburg","Mainz","Dortmund","Fortuna Dusseldorf","Freiburg","Wolfsburg","M'gladbach","Bayern Munich","RB Leipzig","Hoffenheim","Leverkusen","Schalke 04","Union Berlin","FC Koln","Werder Bremen","Paderborn","Hoffenheim","Augsburg","Bayern Munich","Werder Bremen","FC Koln","Leverkusen","Hertha","Freiburg","Mainz","Dortmund","Paderborn","Union Berlin","Fortuna Dusseldorf","RB Leipzig","Wolfsburg","M'gladbach","Schalke 04","Ein Frankfurt","Werder Bremen","Mainz","Augsburg","Fortuna Dusseldorf","Dortmund","RB Leipzig","Union Berlin","Hoffenheim","Leverkusen","Hertha","Ein Frankfurt","FC Koln","Freiburg","Bayern Munich","M'gladbach","Paderborn","Wolfsburg","Schalke 04","Hoffenheim","Dortmund","Bayern Munich","Wolfsburg","FC Koln","Werder Bremen","Mainz","Leverkusen","RB Leipzig","Augsburg","Schalke 04","Freiburg","Hertha","M'gladbach","Fortuna Dusseldorf","Union Berlin","Paderborn","Ein Frankfurt","Schalke 04","M'gladbach","Augsburg","Dortmund","FC Koln","Wolfsburg","Fortuna Dusseldorf","Werder Bremen","Hoffenheim","Ein Frankfurt","Mainz","Freiburg","RB Leipzig","Union Berlin","Hertha","Bayern Munich","Paderborn","Leverkusen","Dortmund","FC Koln","Ein Frankfurt","RB Leipzig","Freiburg","Paderborn","M'gladbach","Mainz","Union Berlin","Augsburg","Wolfsburg","Hertha","Bayern Munich","Schalke 04","Werder Bremen","Hoffenheim","Leverkusen","Fortuna Dusseldorf","Hertha","Schalke 04","Augsburg","Werder Bremen","Dortmund","Union Berlin","Fortuna Dusseldorf","Ein Frankfurt","Hoffenheim","Leverkusen","Mainz","Bayern Munich","RB Leipzig","M'gladbach","FC Koln","Freiburg","Paderborn","Wolfsburg","Ein Frankfurt","Augsburg","Freiburg","Hoffenheim","Hertha","Mainz","Schalke 04","Paderborn","Werder Bremen","Union Berlin","Wolfsburg","Fortuna Dusseldorf","Leverkusen","Dortmund","Bayern Munich","RB Leipzig","Dortmund","Ein Frankfurt","Augsburg","Freiburg","Hoffenheim","Wolfsburg","Paderborn","Hertha","RB Leipzig","Werder Bremen","Union Berlin","Leverkusen","Fortuna Dusseldorf","M'gladbach","FC Koln","Bayern Munich","Mainz","Schalke 04","Bayern Munich","Paderborn","Freiburg","Fortuna Dusseldorf","Hertha","FC Koln","M'gladbach","Hoffenheim","Werder Bremen","Dortmund","Schalke 04","RB Leipzig","Leverkusen","Augsburg","Wolfsburg","Mainz","Ein Frankfurt","Union Berlin","Fortuna Dusseldorf","Hertha","Augsburg","M'gladbach","Dortmund","Freiburg","Hoffenheim","Bayern Munich","Mainz","Paderborn","FC Koln","Schalke 04","Union Berlin","Wolfsburg","RB Leipzig","Leverkusen","Paderborn","FC Koln","Freiburg","Union Berlin","Hertha","Werder Bremen","Leverkusen","Ein Frankfurt","Schalke 04","Hoffenheim","Wolfsburg","RB Leipzig","M'gladbach","Dortmund","Bayern Munich","Augsburg","Mainz","Fortuna Dusseldorf","M'gladbach","FC Koln","Augsburg","FC Koln","Augsburg","Hoffenheim","Augsburg","Paderborn","Augsburg","RB Leipzig","Augsburg","Wolfsburg","Bayern Munich","Ein Frankfurt","Bayern Munich","Fortuna Dusseldorf","Bayern Munich","Freiburg","Bayern Munich","M'gladbach","Dortmund","Bayern Munich","Dortmund","Hertha","Dortmund","Hoffenheim","Dortmund","Mainz","Dortmund","Schalke 04","Ein Frankfurt","Freiburg","Ein Frankfurt","M'gladbach","Ein Frankfurt","Mainz","Ein Frankfurt","Paderborn","Ein Frankfurt","Schalke 04","FC Koln","Ein Frankfurt","FC Koln","Fortuna Dusseldorf","FC Koln","Mainz","FC Koln","RB Leipzig","FC Koln","Union Berlin","Fortuna Dusseldorf","Augsburg","Fortuna Dusseldorf","Dortmund","Fortuna Dusseldorf","Hoffenheim","Fortuna Dusseldorf","Paderborn","Fortuna Dusseldorf","Schalke 04","Freiburg","Hertha","Freiburg","Leverkusen","Freiburg","M'gladbach","Freiburg","Schalke 04","Freiburg","Werder Bremen","Hertha","Augsburg","Hertha","Ein Frankfurt","Hertha","Leverkusen","Hertha","Union Berlin","Hoffenheim","FC Koln","Hoffenheim","Hertha","Hoffenheim","RB Leipzig","Hoffenheim","Union Berlin","Leverkusen","Bayern Munich","Leverkusen","FC Koln","Leverkusen","Mainz","Leverkusen","Wolfsburg","M'gladbach","Hertha","M'gladbach","Leverkusen","M'gladbach","Union Berlin","M'gladbach","Wolfsburg","Mainz","Augsburg","Mainz","Hoffenheim","Mainz","RB Leipzig","Mainz","Werder Bremen","Paderborn","Dortmund","Paderborn","Hoffenheim","Paderborn","M'gladbach","Paderborn","Werder Bremen","RB Leipzig","Dortmund","RB Leipzig","Fortuna Dusseldorf","RB Leipzig","Freiburg","RB Leipzig","Hertha","RB Leipzig","Paderborn","Schalke 04","Augsburg","Schalke 04","Leverkusen","Schalke 04","Werder Bremen","Schalke 04","Wolfsburg","Union Berlin","Bayern Munich","Union Berlin","Fortuna Dusseldorf","Union Berlin","Mainz","Union Berlin","Paderborn","Union Berlin","Schalke 04","Werder Bremen","Bayern Munich","Werder Bremen","Ein Frankfurt","Werder Bremen","FC Koln","Werder Bremen","Leverkusen","Werder Bremen","M'gladbach","Werder Bremen","Wolfsburg","Wolfsburg","Bayern Munich","Wolfsburg","Dortmund","Wolfsburg","Ein Frankfurt","Wolfsburg","Freiburg"],[2,2,5,1,3,0,3,2,1,3,2,1,0,0,1,0,0,4,1,3,1,1,1,3,3,2,1,3,1,3,0,3,2,1,0,3,1,3,6,1,1,2,0,0,3,0,1,1,3,1,3,2,2,1,1,1,2,1,4,0,0,1,2,1,1,2,1,1,0,3,1,5,2,1,4,0,1,1,2,1,2,0,0,3,2,1,2,2,1,1,1,2,0,3,0,3,0,1,2,3,1,3,2,2,1,2,0,4,3,1,1,2,2,2,1,1,1,2,1,1,5,1,1,0,2,2,3,0,2,2,1,0,1,1,2,0,1,1,1,0,3,0,2,0,3,1,2,1,2,1,2,3,2,0,0,0,2,2,0,0,4,2,3,0,3,0,5,1,1,2,8,0,2,2,1,0,2,0,2,3,1,2,2,4,2,3,0,1,3,3,4,0,3,1,0,2,1,0,3,3,0,2,0,4,1,1,2,0,1,2,4,1,4,0,1,5,2,1,1,1,1,2,1,1,2,3,1,2,4,2,2,3,2,1,2,2,2,1,5,0,1,0,2,1,3,1,2,1,2,0,0,1,2,4,6,1,2,0,1,0,0,4,1,1,0,3,2,1,1,0,0,5,3,0,3,3,0,2,0,1,2,4,1,3,2,0,1,1,2,1,2,0,1,0,0,1,3,1,2,2,0,0,2,1,2,1,2,0,3,5,3,1,0,1,1,2,1,2,3,1,0,4,1,4,5,1,2,0,0,2,3,1,2,0,1,2,5,0,0,3,3,0,0,0,2,1,5,0,1,1,2,1,1,3,2,2,4,0,2,4,5,0,1,0,1,3,1,1,0,2,1,1,4,3,0,0,4,0,1,1,2,3,1,2,3,0,2,3,1,4,1,4,0,0,3,2,0,2,0,5,1,1,0,2,0,5,2,0,4,0,1,2,3,3,2,3,1,0,0,6,2,0,3,0,2,2,1,1,1,2,3,1,2,2,4,0,1,1,0,0,1,2,2,0,1,1,2,1,1,1,1,0,1,2,2,2,1,4,2,1,0,0,1,2,3,2,5,3,6,0,3,2,4,1,4,1,2,0,0,1,1,1,1,1,0,1,1,0,2,0,2,1,2,1,0,2,2,1,1,4,0,0,1,2,2,2,0,1,2,1,0,1,2,0,0,1,0,0,1,1,0,2,1,3,0,0,1,2,0,3,0,2,1,1,3,1,2,1,2,1,3,2,3,4,0,2,1,1,1,1,3,1,1,2,3,2,1,3,1,0,0,2,2,2,0,2,3,2,6,0,1,2,2,0,0,2,3,2,0,1,1,0,2,1,0,0,1,1,1,3,0,1,1,3,0,1,0,3,0,1,1,1,1,2,6,1,1,4,0,1,4,2],[2,2,1,5,0,3,2,3,3,1,1,2,0,0,0,1,4,0,3,1,1,1,3,1,2,3,3,1,3,1,3,0,1,2,3,0,3,1,1,6,2,1,0,0,0,3,1,1,1,3,2,3,1,2,1,1,1,2,0,4,1,0,1,2,2,1,1,1,3,0,5,1,1,2,0,4,1,1,1,2,0,2,3,0,1,2,2,2,1,1,2,1,3,0,3,0,1,0,3,2,3,1,2,2,2,1,4,0,1,3,2,1,2,2,1,1,2,1,1,1,1,5,0,1,2,2,0,3,2,2,0,1,1,1,0,2,1,1,0,1,0,3,0,2,1,3,1,2,1,2,3,2,0,2,0,0,2,2,0,0,2,4,0,3,0,3,1,5,2,1,0,8,2,2,0,1,0,2,3,2,2,1,4,2,3,2,1,0,3,3,0,4,1,3,2,0,0,1,3,3,2,0,4,0,1,1,0,2,2,1,1,4,0,4,5,1,1,2,1,1,2,1,1,1,3,2,2,1,2,4,3,2,1,2,2,2,1,2,0,5,0,1,1,2,1,3,1,2,0,2,1,0,4,2,1,6,0,2,0,1,4,0,1,1,3,0,1,2,0,1,5,0,0,3,3,3,2,0,1,0,4,2,3,1,0,2,1,1,1,2,0,2,0,1,1,0,1,3,2,2,0,0,1,2,1,2,0,2,5,3,1,3,1,0,2,1,2,1,1,3,4,0,4,1,1,5,0,2,2,0,1,3,0,2,2,1,0,5,3,0,0,3,0,0,1,2,0,5,1,1,1,2,3,1,2,2,0,4,4,2,0,5,0,1,3,1,1,1,2,0,1,1,3,4,0,0,0,4,1,1,3,2,2,1,0,3,3,2,4,1,4,1,0,0,2,3,2,0,5,0,1,1,2,0,5,0,0,2,0,4,2,1,3,3,3,2,0,1,6,0,0,2,0,3,2,2,1,1,2,1,1,3,2,2,0,4,1,1,0,0,2,1,0,2,1,1,1,2,1,1,0,1,2,1,2,2,4,1,1,2,0,0,2,1,2,3,3,5,0,6,2,3,1,4,1,4,0,2,1,0,1,1,1,1,1,0,0,1,0,2,1,2,1,2,2,0,1,2,4,1,0,0,2,1,2,2,1,0,1,2,1,0,0,2,1,0,0,0,1,1,2,0,3,1,0,0,2,1,3,0,2,0,1,1,1,3,1,2,1,2,2,3,4,3,2,0,1,1,1,1,1,3,2,1,2,3,3,1,0,1,2,0,2,2,2,0,2,3,0,6,2,1,0,2,2,0,2,3,1,0,0,1,1,2,0,0,1,1,3,1,1,0,3,1,1,0,3,0,1,0,1,1,2,1,1,6,4,1,1,0,2,4],[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>Date<\/th>\n      <th>FTR<\/th>\n      <th>match_id<\/th>\n      <th>side<\/th>\n      <th>team<\/th>\n      <th>G<\/th>\n      <th>GA<\/th>\n      <th>sim<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":6,"columnDefs":[{"className":"dt-right","targets":[3,6,7,8]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[6,10,25,50,100]}},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="simulation-3" class="section level3">
+<h3>Simulation 3</h3>
+<div id="htmlwidget-5" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-5">{"x":{"filter":"none","data":[["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54","55","56","57","58","59","60","61","62","63","64","65","66","67","68","69","70","71","72","73","74","75","76","77","78","79","80","81","82","83","84","85","86","87","88","89","90","91","92","93","94","95","96","97","98","99","100","101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","131","132","133","134","135","136","137","138","139","140","141","142","143","144","145","146","147","148","149","150","151","152","153","154","155","156","157","158","159","160","161","162","163","164","165","166","167","168","169","170","171","172","173","174","175","176","177","178","179","180","181","182","183","184","185","186","187","188","189","190","191","192","193","194","195","196","197","198","199","200","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224","225","226","227","228","229","230","231","232","233","234","235","236","237","238","239","240","241","242","243","244","245","246","247","248","249","250","251","252","253","254","255","256","257","258","259","260","261","262","263","264","265","266","267","268","269","270","271","272","273","274","275","276","277","278","279","280","281","282","283","284","285","286","287","288","289","290","291","292","293","294","295","296","297","298","299","300","301","302","303","304","305","306","307","308","309","310","311","312","313","314","315","316","317","318","319","320","321","322","323","324","325","326","327","328","329","330","331","332","333","334","335","336","337","338","339","340","341","342","343","344","345","346","347","348","349","350","351","352","353","354","355","356","357","358","359","360","361","362","363","364","365","366","367","368","369","370","371","372","373","374","375","376","377","378","379","380","381","382","383","384","385","386","387","388","389","390","391","392","393","394","395","396","397","398","399","400","401","402","403","404","405","406","407","408","409","410","411","412","413","414","415","416","417","418","419","420","421","422","423","424","425","426","427","428","429","430","431","432","433","434","435","436","437","438","439","440","441","442","443","444","445","446","447","448","449","450","451","452","453","454","455","456","457","458","459","460","461","462","463","464","465","466","467","468","469","470","471","472","473","474","475","476","477","478","479","480","481","482","483","484","485","486","487","488","489","490","491","492","493","494","495","496","497","498","499","500","501","502","503","504","505","506","507","508","509","510","511","512","513","514","515","516","517","518","519","520","521","522","523","524","525","526","527","528","529","530","531","532","533","534","535","536","537","538","539","540","541","542","543","544","545","546","547","548","549","550","551","552","553","554","555","556","557","558","559","560","561","562","563","564","565","566","567","568","569","570","571","572","573","574","575","576","577","578","579","580","581","582","583","584","585","586","587","588","589","590","591","592","593","594","595","596","597","598","599","600","601","602","603","604","605","606","607","608","609","610","611","612"],["2019-08-16","2019-08-16","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-17","2019-08-18","2019-08-18","2019-08-18","2019-08-18","2019-08-23","2019-08-23","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-24","2019-08-25","2019-08-25","2019-08-25","2019-08-25","2019-08-30","2019-08-30","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-08-31","2019-09-01","2019-09-01","2019-09-01","2019-09-01","2019-09-13","2019-09-13","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-14","2019-09-15","2019-09-15","2019-09-15","2019-09-15","2019-09-20","2019-09-20","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-21","2019-09-22","2019-09-22","2019-09-22","2019-09-22","2019-09-23","2019-09-23","2019-09-27","2019-09-27","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-28","2019-09-29","2019-09-29","2019-09-29","2019-09-29","2019-10-04","2019-10-04","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-05","2019-10-06","2019-10-06","2019-10-06","2019-10-06","2019-10-06","2019-10-06","2019-10-18","2019-10-18","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-19","2019-10-20","2019-10-20","2019-10-20","2019-10-20","2019-10-25","2019-10-25","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-26","2019-10-27","2019-10-27","2019-10-27","2019-10-27","2019-11-01","2019-11-01","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-02","2019-11-03","2019-11-03","2019-11-03","2019-11-03","2019-11-08","2019-11-08","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-09","2019-11-10","2019-11-10","2019-11-10","2019-11-10","2019-11-10","2019-11-10","2019-11-22","2019-11-22","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-23","2019-11-24","2019-11-24","2019-11-24","2019-11-24","2019-11-29","2019-11-29","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-11-30","2019-12-01","2019-12-01","2019-12-01","2019-12-01","2019-12-02","2019-12-02","2019-12-06","2019-12-06","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-07","2019-12-08","2019-12-08","2019-12-08","2019-12-08","2019-12-13","2019-12-13","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-14","2019-12-15","2019-12-15","2019-12-15","2019-12-15","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-17","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-18","2019-12-20","2019-12-20","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-21","2019-12-22","2019-12-22","2019-12-22","2019-12-22","2020-01-17","2020-01-17","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-18","2020-01-19","2020-01-19","2020-01-19","2020-01-19","2020-01-24","2020-01-24","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-25","2020-01-26","2020-01-26","2020-01-26","2020-01-26","2020-01-31","2020-01-31","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-01","2020-02-02","2020-02-02","2020-02-02","2020-02-02","2020-02-07","2020-02-07","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-08","2020-02-09","2020-02-09","2020-02-14","2020-02-14","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-15","2020-02-16","2020-02-16","2020-02-16","2020-02-16","2020-02-21","2020-02-21","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-22","2020-02-23","2020-02-23","2020-02-23","2020-02-23","2020-02-24","2020-02-24","2020-02-28","2020-02-28","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-02-29","2020-03-01","2020-03-01","2020-03-01","2020-03-01","2020-03-06","2020-03-06","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-07","2020-03-08","2020-03-08","2020-03-08","2020-03-08","2020-03-11","2020-03-11",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],["D","D","H","H","H","H","H","H","A","A","H","H","D","D","H","H","A","A","A","A","D","D","A","A","H","H","A","A","A","A","A","A","H","H","A","A","A","A","H","H","A","A","D","D","H","H","D","D","H","H","H","H","H","H","D","D","H","H","H","H","A","A","H","H","A","A","D","D","A","A","A","A","H","H","H","H","D","D","H","H","H","H","A","A","H","H","D","D","D","D","A","A","A","A","A","A","A","A","A","A","A","A","D","D","A","A","A","A","H","H","A","A","D","D","D","D","A","A","D","D","H","H","H","H","D","D","H","H","D","D","H","H","D","D","H","H","D","D","H","H","H","H","H","H","H","H","H","H","H","H","A","A","H","H","D","D","D","D","D","D","H","H","H","H","H","H","H","H","A","A","H","H","D","D","H","H","H","H","A","A","A","A","A","A","A","A","A","A","D","D","H","H","H","H","A","A","H","H","D","D","A","A","A","A","D","D","H","H","A","A","H","H","H","H","A","A","H","H","D","D","A","A","D","D","A","A","A","A","H","H","A","A","H","H","D","D","H","H","H","H","H","H","H","H","H","H","H","H","H","H","A","A","A","A","H","H","H","H","H","H","A","A","D","D","A","A","H","H","H","H","A","A","H","H","D","D","A","A","A","A","A","A","A","A","H","H","D","D","H","H","H","H","H","H","A","A","H","H","D","D","D","D","H","H","H","H","H","H","A","A","H","H","A","A","A","A","A","A","H","H","A","A","A","A","H","H","H","H","A","A","H","H","H","H","A","A","H","H","A","A","H","H","D","D","H","H","H","H","D","D","H","H","A","A","D","D","H","H","A","A","H","H","H","H","A","A","D","D","A","A","D","D","H","H","D","D","H","H","D","D","A","A","A","A","H","H","A","A","A","A","A","A","D","D","H","H","A","A","A","A","D","D","A","A","A","A","H","H","H","H","A","A","D","D","A","A","H","H","A","A","H","H","H","H","D","D","D","D","A","A","H","H","D","D","H","H","D","D","D","D","A","A","H","H","D","D","H","H","A","A","H","H","H","H","A","A","D","D","H","H","D","D","A","A","H","H","A","A","H","H","D","D","H","H","A","A","H","H","H","H","H","H","H","H","H","H","D","D","D","D","D","D","A","A","A","A","A","A","A","A","H","H","H","H","H","H","D","D","H","H","A","A","D","D","D","D","A","A","A","A","H","H","A","A","H","H","H","H","A","A","A","A","D","D","A","A","D","D","H","H","H","H","A","A","H","H","A","A","A","A","A","A","A","A","A","A","A","A","D","D","H","H","D","D","H","H","H","H","H","H","H","H","A","A","H","H","H","H","H","H","D","D","A","A","H","H","A","A","H","H","H","H","A","A","H","H","H","H","A","A","D","D","H","H","H","H","H","H","H","H","H","H"],[1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13,14,14,15,15,16,16,17,17,18,18,19,19,20,20,21,21,22,22,23,23,24,24,25,25,26,26,27,27,28,28,29,29,30,30,31,31,32,32,33,33,34,34,35,35,36,36,37,37,38,38,39,39,40,40,41,41,42,42,43,43,44,44,45,45,46,46,47,47,48,48,49,49,50,50,51,51,52,52,53,53,54,54,55,55,56,56,57,57,58,58,59,59,60,60,61,61,62,62,63,63,64,64,65,65,66,66,67,67,68,68,69,69,70,70,71,71,72,72,73,73,74,74,75,75,76,76,77,77,78,78,79,79,80,80,81,81,82,82,83,83,84,84,85,85,86,86,87,87,88,88,89,89,90,90,91,91,92,92,93,93,94,94,95,95,96,96,97,97,98,98,99,99,100,100,101,101,102,102,103,103,104,104,105,105,106,106,107,107,108,108,109,109,110,110,111,111,112,112,113,113,114,114,115,115,116,116,117,117,118,118,119,119,120,120,121,121,122,122,123,123,124,124,125,125,126,126,127,127,128,128,129,129,130,130,131,131,132,132,133,133,134,134,135,135,136,136,137,137,138,138,139,139,140,140,141,141,142,142,143,143,144,144,145,145,146,146,147,147,148,148,149,149,150,150,151,151,152,152,153,153,154,154,155,155,156,156,157,157,158,158,159,159,160,160,161,161,162,162,163,163,164,164,165,165,166,166,167,167,168,168,169,169,170,170,171,171,172,172,173,173,174,174,175,175,176,176,177,177,178,178,179,179,180,180,181,181,182,182,183,183,184,184,185,185,186,186,187,187,188,188,189,189,190,190,191,191,192,192,193,193,194,194,195,195,196,196,197,197,198,198,199,199,200,200,201,201,202,202,203,203,204,204,205,205,206,206,207,207,208,208,209,209,210,210,211,211,212,212,213,213,214,214,215,215,216,216,217,217,218,218,219,219,220,220,221,221,222,222,223,223,224,224,225,225,226,226,227,227,228,228,229,229,230,230,231,231,232,232,233,233,234,234,235,235,236,236,237,237,238,238,239,239,240,240,241,241,242,242,243,243,244,244,245,245,246,246,247,247,248,248,249,249,250,250,251,251,252,252,253,253,254,254,255,255,256,256,257,257,258,258,259,259,260,260,261,261,262,262,263,263,264,264,265,265,266,266,267,267,268,268,269,269,270,270,271,271,272,272,273,273,274,274,275,275,276,276,277,277,278,278,279,279,280,280,281,281,282,282,283,283,284,284,285,285,286,286,287,287,288,288,289,289,290,290,291,291,292,292,293,293,294,294,295,295,296,296,297,297,298,298,299,299,300,300,301,301,302,302,303,303,304,304,305,305,306,306],["H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A","H","A"],["Bayern Munich","Hertha","Dortmund","Augsburg","Freiburg","Mainz","Leverkusen","Paderborn","Werder Bremen","Fortuna Dusseldorf","Wolfsburg","FC Koln","M'gladbach","Schalke 04","Ein Frankfurt","Hoffenheim","Union Berlin","RB Leipzig","FC Koln","Dortmund","Augsburg","Union Berlin","Fortuna Dusseldorf","Leverkusen","Hoffenheim","Werder Bremen","Mainz","M'gladbach","Paderborn","Freiburg","Schalke 04","Bayern Munich","RB Leipzig","Ein Frankfurt","Hertha","Wolfsburg","M'gladbach","RB Leipzig","Bayern Munich","Mainz","Freiburg","FC Koln","Leverkusen","Hoffenheim","Schalke 04","Hertha","Wolfsburg","Paderborn","Union Berlin","Dortmund","Werder Bremen","Augsburg","Ein Frankfurt","Fortuna Dusseldorf","Fortuna Dusseldorf","Wolfsburg","Augsburg","Ein Frankfurt","Dortmund","Leverkusen","FC Koln","M'gladbach","Mainz","Hertha","Union Berlin","Werder Bremen","RB Leipzig","Bayern Munich","Hoffenheim","Freiburg","Paderborn","Schalke 04","Schalke 04","Mainz","Bayern Munich","FC Koln","Freiburg","Augsburg","Hertha","Paderborn","Leverkusen","Union Berlin","Werder Bremen","RB Leipzig","M'gladbach","Fortuna Dusseldorf","Ein Frankfurt","Dortmund","Wolfsburg","Hoffenheim","Union Berlin","Ein Frankfurt","Augsburg","Leverkusen","Hoffenheim","M'gladbach","Mainz","Wolfsburg","Paderborn","Bayern Munich","RB Leipzig","Schalke 04","Dortmund","Werder Bremen","Fortuna Dusseldorf","Freiburg","FC Koln","Hertha","Hertha","Fortuna Dusseldorf","Bayern Munich","Hoffenheim","Freiburg","Dortmund","Leverkusen","RB Leipzig","Paderborn","Mainz","Schalke 04","FC Koln","M'gladbach","Augsburg","Wolfsburg","Union Berlin","Ein Frankfurt","Werder Bremen","Ein Frankfurt","Leverkusen","Augsburg","Bayern Munich","Fortuna Dusseldorf","Mainz","RB Leipzig","Wolfsburg","Union Berlin","Freiburg","Werder Bremen","Hertha","Dortmund","M'gladbach","FC Koln","Paderborn","Hoffenheim","Schalke 04","Mainz","FC Koln","Bayern Munich","Union Berlin","Freiburg","RB Leipzig","Hertha","Hoffenheim","Paderborn","Fortuna Dusseldorf","Schalke 04","Dortmund","Leverkusen","Werder Bremen","Wolfsburg","Augsburg","M'gladbach","Ein Frankfurt","Hoffenheim","Paderborn","Dortmund","Wolfsburg","Ein Frankfurt","Bayern Munich","Leverkusen","M'gladbach","RB Leipzig","Mainz","Werder Bremen","Freiburg","Union Berlin","Hertha","Fortuna Dusseldorf","FC Koln","Augsburg","Schalke 04","FC Koln","Hoffenheim","Hertha","RB Leipzig","Mainz","Union Berlin","Paderborn","Augsburg","Schalke 04","Fortuna Dusseldorf","Bayern Munich","Dortmund","M'gladbach","Werder Bremen","Wolfsburg","Leverkusen","Freiburg","Ein Frankfurt","Dortmund","Paderborn","Ein Frankfurt","Wolfsburg","Fortuna Dusseldorf","Bayern Munich","Leverkusen","Freiburg","Union Berlin","M'gladbach","Werder Bremen","Schalke 04","RB Leipzig","FC Koln","Augsburg","Hertha","Hoffenheim","Mainz","Schalke 04","Union Berlin","FC Koln","Augsburg","Hertha","Dortmund","Hoffenheim","Fortuna Dusseldorf","Paderborn","RB Leipzig","Bayern Munich","Leverkusen","M'gladbach","Freiburg","Wolfsburg","Werder Bremen","Mainz","Ein Frankfurt","Ein Frankfurt","Hertha","Augsburg","Mainz","Dortmund","Fortuna Dusseldorf","Freiburg","Wolfsburg","M'gladbach","Bayern Munich","RB Leipzig","Hoffenheim","Leverkusen","Schalke 04","Union Berlin","FC Koln","Werder Bremen","Paderborn","Hoffenheim","Augsburg","Bayern Munich","Werder Bremen","FC Koln","Leverkusen","Hertha","Freiburg","Mainz","Dortmund","Paderborn","Union Berlin","Fortuna Dusseldorf","RB Leipzig","Wolfsburg","M'gladbach","Schalke 04","Ein Frankfurt","Werder Bremen","Mainz","Augsburg","Fortuna Dusseldorf","Dortmund","RB Leipzig","Union Berlin","Hoffenheim","Leverkusen","Hertha","Ein Frankfurt","FC Koln","Freiburg","Bayern Munich","M'gladbach","Paderborn","Wolfsburg","Schalke 04","Hoffenheim","Dortmund","Bayern Munich","Wolfsburg","FC Koln","Werder Bremen","Mainz","Leverkusen","RB Leipzig","Augsburg","Schalke 04","Freiburg","Hertha","M'gladbach","Fortuna Dusseldorf","Union Berlin","Paderborn","Ein Frankfurt","Schalke 04","M'gladbach","Augsburg","Dortmund","FC Koln","Wolfsburg","Fortuna Dusseldorf","Werder Bremen","Hoffenheim","Ein Frankfurt","Mainz","Freiburg","RB Leipzig","Union Berlin","Hertha","Bayern Munich","Paderborn","Leverkusen","Dortmund","FC Koln","Ein Frankfurt","RB Leipzig","Freiburg","Paderborn","M'gladbach","Mainz","Union Berlin","Augsburg","Wolfsburg","Hertha","Bayern Munich","Schalke 04","Werder Bremen","Hoffenheim","Leverkusen","Fortuna Dusseldorf","Hertha","Schalke 04","Augsburg","Werder Bremen","Dortmund","Union Berlin","Fortuna Dusseldorf","Ein Frankfurt","Hoffenheim","Leverkusen","Mainz","Bayern Munich","RB Leipzig","M'gladbach","FC Koln","Freiburg","Paderborn","Wolfsburg","Ein Frankfurt","Augsburg","Freiburg","Hoffenheim","Hertha","Mainz","Schalke 04","Paderborn","Werder Bremen","Union Berlin","Wolfsburg","Fortuna Dusseldorf","Leverkusen","Dortmund","Bayern Munich","RB Leipzig","Dortmund","Ein Frankfurt","Augsburg","Freiburg","Hoffenheim","Wolfsburg","Paderborn","Hertha","RB Leipzig","Werder Bremen","Union Berlin","Leverkusen","Fortuna Dusseldorf","M'gladbach","FC Koln","Bayern Munich","Mainz","Schalke 04","Bayern Munich","Paderborn","Freiburg","Fortuna Dusseldorf","Hertha","FC Koln","M'gladbach","Hoffenheim","Werder Bremen","Dortmund","Schalke 04","RB Leipzig","Leverkusen","Augsburg","Wolfsburg","Mainz","Ein Frankfurt","Union Berlin","Fortuna Dusseldorf","Hertha","Augsburg","M'gladbach","Dortmund","Freiburg","Hoffenheim","Bayern Munich","Mainz","Paderborn","FC Koln","Schalke 04","Union Berlin","Wolfsburg","RB Leipzig","Leverkusen","Paderborn","FC Koln","Freiburg","Union Berlin","Hertha","Werder Bremen","Leverkusen","Ein Frankfurt","Schalke 04","Hoffenheim","Wolfsburg","RB Leipzig","M'gladbach","Dortmund","Bayern Munich","Augsburg","Mainz","Fortuna Dusseldorf","M'gladbach","FC Koln","Augsburg","FC Koln","Augsburg","Hoffenheim","Augsburg","Paderborn","Augsburg","RB Leipzig","Augsburg","Wolfsburg","Bayern Munich","Ein Frankfurt","Bayern Munich","Fortuna Dusseldorf","Bayern Munich","Freiburg","Bayern Munich","M'gladbach","Dortmund","Bayern Munich","Dortmund","Hertha","Dortmund","Hoffenheim","Dortmund","Mainz","Dortmund","Schalke 04","Ein Frankfurt","Freiburg","Ein Frankfurt","M'gladbach","Ein Frankfurt","Mainz","Ein Frankfurt","Paderborn","Ein Frankfurt","Schalke 04","FC Koln","Ein Frankfurt","FC Koln","Fortuna Dusseldorf","FC Koln","Mainz","FC Koln","RB Leipzig","FC Koln","Union Berlin","Fortuna Dusseldorf","Augsburg","Fortuna Dusseldorf","Dortmund","Fortuna Dusseldorf","Hoffenheim","Fortuna Dusseldorf","Paderborn","Fortuna Dusseldorf","Schalke 04","Freiburg","Hertha","Freiburg","Leverkusen","Freiburg","M'gladbach","Freiburg","Schalke 04","Freiburg","Werder Bremen","Hertha","Augsburg","Hertha","Ein Frankfurt","Hertha","Leverkusen","Hertha","Union Berlin","Hoffenheim","FC Koln","Hoffenheim","Hertha","Hoffenheim","RB Leipzig","Hoffenheim","Union Berlin","Leverkusen","Bayern Munich","Leverkusen","FC Koln","Leverkusen","Mainz","Leverkusen","Wolfsburg","M'gladbach","Hertha","M'gladbach","Leverkusen","M'gladbach","Union Berlin","M'gladbach","Wolfsburg","Mainz","Augsburg","Mainz","Hoffenheim","Mainz","RB Leipzig","Mainz","Werder Bremen","Paderborn","Dortmund","Paderborn","Hoffenheim","Paderborn","M'gladbach","Paderborn","Werder Bremen","RB Leipzig","Dortmund","RB Leipzig","Fortuna Dusseldorf","RB Leipzig","Freiburg","RB Leipzig","Hertha","RB Leipzig","Paderborn","Schalke 04","Augsburg","Schalke 04","Leverkusen","Schalke 04","Werder Bremen","Schalke 04","Wolfsburg","Union Berlin","Bayern Munich","Union Berlin","Fortuna Dusseldorf","Union Berlin","Mainz","Union Berlin","Paderborn","Union Berlin","Schalke 04","Werder Bremen","Bayern Munich","Werder Bremen","Ein Frankfurt","Werder Bremen","FC Koln","Werder Bremen","Leverkusen","Werder Bremen","M'gladbach","Werder Bremen","Wolfsburg","Wolfsburg","Bayern Munich","Wolfsburg","Dortmund","Wolfsburg","Ein Frankfurt","Wolfsburg","Freiburg"],[2,2,5,1,3,0,3,2,1,3,2,1,0,0,1,0,0,4,1,3,1,1,1,3,3,2,1,3,1,3,0,3,2,1,0,3,1,3,6,1,1,2,0,0,3,0,1,1,3,1,3,2,2,1,1,1,2,1,4,0,0,1,2,1,1,2,1,1,0,3,1,5,2,1,4,0,1,1,2,1,2,0,0,3,2,1,2,2,1,1,1,2,0,3,0,3,0,1,2,3,1,3,2,2,1,2,0,4,3,1,1,2,2,2,1,1,1,2,1,1,5,1,1,0,2,2,3,0,2,2,1,0,1,1,2,0,1,1,1,0,3,0,2,0,3,1,2,1,2,1,2,3,2,0,0,0,2,2,0,0,4,2,3,0,3,0,5,1,1,2,8,0,2,2,1,0,2,0,2,3,1,2,2,4,2,3,0,1,3,3,4,0,3,1,0,2,1,0,3,3,0,2,0,4,1,1,2,0,1,2,4,1,4,0,1,5,2,1,1,1,1,2,1,1,2,3,1,2,4,2,2,3,2,1,2,2,2,1,5,0,1,0,2,1,3,1,2,1,2,0,0,1,2,4,6,1,2,0,1,0,0,4,1,1,0,3,2,1,1,0,0,5,3,0,3,3,0,2,0,1,2,4,1,3,2,0,1,1,2,1,2,0,1,0,0,1,3,1,2,2,0,0,2,1,2,1,2,0,3,5,3,1,0,1,1,2,1,2,3,1,0,4,1,4,5,1,2,0,0,2,3,1,2,0,1,2,5,0,0,3,3,0,0,0,2,1,5,0,1,1,2,1,1,3,2,2,4,0,2,4,5,0,1,0,1,3,1,1,0,2,1,1,4,3,0,0,4,0,1,1,2,3,1,2,3,0,2,3,1,4,1,4,0,0,3,2,0,2,0,5,1,1,0,2,0,5,2,0,4,0,1,2,3,3,2,3,1,0,0,6,2,0,3,0,2,2,1,1,1,2,3,1,2,2,4,0,1,1,0,0,1,2,2,0,1,1,2,1,1,3,2,0,2,0,1,4,1,1,7,1,1,1,2,3,2,1,0,3,7,2,2,2,2,0,1,2,1,0,2,1,2,1,2,1,1,0,1,1,1,1,1,1,1,4,0,2,0,1,2,3,2,1,1,0,2,1,2,2,2,1,0,1,2,2,1,1,0,2,0,1,2,1,0,3,2,1,3,2,3,5,3,4,4,4,0,3,1,1,2,0,2,0,1,2,4,2,0,1,0,2,0,2,2,3,2,4,1,2,1,1,2,1,1,1,5,1,4,1,2,0,4,1,3,4,1,0,3,1,3,2,1,1,1,2,2,0,0,1,2,0,2,0,0,2,1,0,1,0,0,1,0,0,3,1,3,2,3,2,3,1,1,0],[2,2,1,5,0,3,2,3,3,1,1,2,0,0,0,1,4,0,3,1,1,1,3,1,2,3,3,1,3,1,3,0,1,2,3,0,3,1,1,6,2,1,0,0,0,3,1,1,1,3,2,3,1,2,1,1,1,2,0,4,1,0,1,2,2,1,1,1,3,0,5,1,1,2,0,4,1,1,1,2,0,2,3,0,1,2,2,2,1,1,2,1,3,0,3,0,1,0,3,2,3,1,2,2,2,1,4,0,1,3,2,1,2,2,1,1,2,1,1,1,1,5,0,1,2,2,0,3,2,2,0,1,1,1,0,2,1,1,0,1,0,3,0,2,1,3,1,2,1,2,3,2,0,2,0,0,2,2,0,0,2,4,0,3,0,3,1,5,2,1,0,8,2,2,0,1,0,2,3,2,2,1,4,2,3,2,1,0,3,3,0,4,1,3,2,0,0,1,3,3,2,0,4,0,1,1,0,2,2,1,1,4,0,4,5,1,1,2,1,1,2,1,1,1,3,2,2,1,2,4,3,2,1,2,2,2,1,2,0,5,0,1,1,2,1,3,1,2,0,2,1,0,4,2,1,6,0,2,0,1,4,0,1,1,3,0,1,2,0,1,5,0,0,3,3,3,2,0,1,0,4,2,3,1,0,2,1,1,1,2,0,2,0,1,1,0,1,3,2,2,0,0,1,2,1,2,0,2,5,3,1,3,1,0,2,1,2,1,1,3,4,0,4,1,1,5,0,2,2,0,1,3,0,2,2,1,0,5,3,0,0,3,0,0,1,2,0,5,1,1,1,2,3,1,2,2,0,4,4,2,0,5,0,1,3,1,1,1,2,0,1,1,3,4,0,0,0,4,1,1,3,2,2,1,0,3,3,2,4,1,4,1,0,0,2,3,2,0,5,0,1,1,2,0,5,0,0,2,0,4,2,1,3,3,3,2,0,1,6,0,0,2,0,3,2,2,1,1,2,1,1,3,2,2,0,4,1,1,0,0,2,1,0,2,1,1,1,2,3,1,0,2,0,2,4,1,1,1,1,7,1,1,3,2,1,2,3,0,2,7,2,2,0,2,2,1,0,1,1,2,1,2,1,2,0,1,1,1,1,1,1,1,4,1,2,0,1,0,3,2,1,2,0,1,1,2,2,2,1,2,1,0,2,2,1,1,2,0,1,0,1,2,3,0,1,2,2,3,5,3,4,3,4,4,3,0,1,1,0,2,0,2,2,1,2,4,1,0,2,0,2,0,3,2,4,2,2,1,1,1,1,2,1,1,1,5,1,4,0,2,1,4,4,3,0,1,1,3,2,3,1,1,2,1,0,2,1,0,0,2,0,2,2,0,0,1,0,1,1,0,0,0,1,3,2,3,2,3,1,3,0,1],[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>Date<\/th>\n      <th>FTR<\/th>\n      <th>match_id<\/th>\n      <th>side<\/th>\n      <th>team<\/th>\n      <th>G<\/th>\n      <th>GA<\/th>\n      <th>sim<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":6,"columnDefs":[{"className":"dt-right","targets":[3,6,7,8]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[6,10,25,50,100]}},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<div id="section-1" class="section level2 unnumbered">
+<h2></h2>
+<p>For the matches that were actually played the data is the same across simulations. It only differs in the simulated matches. One example is the simulated match Wolfsburg - Freiburg with three potential outcomes predicted from our model.</p>
+<pre class="r"><code>map_df(1:n_sims, ~ gen_dataset(.) %&gt;% tail(2))</code></pre>
+<pre><code># A tibble: 6 x 8
+  Date       FTR   match_id side  team          G    GA   sim
+  &lt;date&gt;     &lt;chr&gt;    &lt;int&gt; &lt;chr&gt; &lt;fct&gt;     &lt;dbl&gt; &lt;dbl&gt; &lt;int&gt;
+1 NA         H          306 H     Wolfsburg     2     1     1
+2 NA         H          306 A     Freiburg      1     2     1
+3 NA         H          306 H     Wolfsburg     4     2     2
+4 NA         H          306 A     Freiburg      2     4     2
+5 NA         H          306 H     Wolfsburg     1     0     3
+6 NA         H          306 A     Freiburg      0     1     3</code></pre>
+<p>We previously created the <code>gen_table()</code> function which takes in a data frame of match results in long format and returns a table of Bundesliga standings. Using this function on the result of <code>gen_dataset()</code> will give us an end of season table for the observed matches and one draw of the posterior predictive, i.e. one simulation, for all the missing matches.</p>
+<p>When we do this repeatedly, we get many possible outcomes for the rest of this Bundesliga season holding constant all observed matches. Before we do this, let’s dial up the number of simulations. The most reasonable number for <code>n_sim</code> would be to just use all of our posterior draws from the model fit.</p>
+<pre class="r"><code>n_sims &lt;- poisson_glmm$stanfit@stan_args %&gt;% 
+  map(~ pluck(., &quot;iter&quot;) - pluck(., &quot;warmup&quot;)) %&gt;% 
+  unlist() %&gt;% 
+  sum()
+
+pp &lt;- posterior_predict(
+  poisson_glmm, 
+  newdata = buli1920_long_mis, 
+  draws = n_sims
+  )
+
+sim_tables &lt;- map_df(
+  1:n_sims, 
+  ~ gen_dataset(.) %&gt;%
+    # using the gen_table function created above
+    gen_table, 
+  .id = &quot;sim&quot;)
+
+sim_tables</code></pre>
+<pre><code># A tibble: 72,000 x 8
+   sim     pos team          played   pts     G    GA    GD
+   &lt;chr&gt; &lt;int&gt; &lt;fct&gt;          &lt;int&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+ 1 1         1 Dortmund          34    76    96    46    50
+ 2 1         2 Bayern Munich     34    72    98    43    55
+ 3 1         3 RB Leipzig        34    64    82    41    41
+ 4 1         4 Leverkusen        34    63    61    43    18
+ 5 1         5 M&#39;gladbach        34    58    60    44    16
+ 6 1         6 FC Koln           34    55    56    53     3
+ 7 1         7 Freiburg          34    48    51    56    -5
+ 8 1         8 Schalke 04        34    47    45    49    -4
+ 9 1         9 Union Berlin      34    45    47    51    -4
+10 1        10 Hoffenheim        34    45    43    56   -13
+# … with 71,990 more rows</code></pre>
+<p>This resulted in a data frame with <span class="math inline">\(18 \times 4000 = 72000\)</span> rows, where each simulated end of season table is indexed by <code>sim</code>. We can now plot all resulting ranks for each team.</p>
+<p><img src="boxplots-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p>The boxplots show where most of the simulated ranks fall. The lines is the median posterior rank of each team, the boxes contain 50% of all simulated values. The whiskers span ±1.5 IQR (inter quartile range). Dots represent outliers, or very unlikely results of the simulations.</p>
+<p>It looks like there are three groups of teams: The first group are most likely finishing the season in positions 1 to 5 (Bayern Munich to Bayer Leverkusen). Another group are the three teams at the bottom of the table (Düsseldorf, Bremen, Paderborn). All other teams will probably end up in the middle of the table, where some fight for Europa League spots (Schalke, Freiburg, Wolfsburg, and Hoffenheim).</p>
+<p>We can also plot the probability for each team to end in a specific spot in the table.</p>
+<p><img src="plot-prob-table-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p>These probabilities are only really high at both ends of the table, since the possible ranks that the teams can reach there are limited – you can not be better than first place or worse than last, obviously.</p>
+<p>Bayern has a two in three chance of winning the league, while Paderborn has a three in five chance of being directly relegated to the second tier. Interestingly, Düsseldorf has a roughly one in three chance of going into relegation play-offs and Leverkusen has a three in five chance of finishing in the best non-CL spots (5th position).</p>
+<p>Since these are valid probabilities, we can add them up for each interesting part of the table (winning the title, CL, EL, relegation play-offs, and immediate relegation).</p>
+<table class="table" style="margin-left: auto; margin-right: auto;">
+<caption>
+<span id="tab:table-sim">Table 2: </span>Simulated probabilities for end of season scenarios
+</caption>
+<thead>
+<tr>
+<th style="text-align:right;">
+</th>
+<th style="text-align:center;">
+Win League
+</th>
+<th style="text-align:center;">
+Champions League
+</th>
+<th style="text-align:center;">
+Europa League
+</th>
+<th style="text-align:center;">
+Mid Table
+</th>
+<th style="text-align:center;">
+Relegation Play-offs
+</th>
+<th style="text-align:center;">
+Relegation
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+Bayern Munich
+</td>
+<td style="text-align:center;width: 5em; ">
+66
+</td>
+<td style="text-align:center;width: 5em; ">
+99
+</td>
+<td style="text-align:center;width: 5em; ">
+1
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Dortmund
+</td>
+<td style="text-align:center;width: 5em; ">
+21
+</td>
+<td style="text-align:center;width: 5em; ">
+97
+</td>
+<td style="text-align:center;width: 5em; ">
+3
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+RB Leipzig
+</td>
+<td style="text-align:center;width: 5em; ">
+10
+</td>
+<td style="text-align:center;width: 5em; ">
+93
+</td>
+<td style="text-align:center;width: 5em; ">
+7
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+M’gladbach
+</td>
+<td style="text-align:center;width: 5em; ">
+2
+</td>
+<td style="text-align:center;width: 5em; ">
+71
+</td>
+<td style="text-align:center;width: 5em; ">
+28
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Leverkusen
+</td>
+<td style="text-align:center;width: 5em; ">
+1
+</td>
+<td style="text-align:center;width: 5em; ">
+39
+</td>
+<td style="text-align:center;width: 5em; ">
+62
+</td>
+<td style="text-align:center;width: 5em; ">
+0
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Schalke 04
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+50
+</td>
+<td style="text-align:center;width: 5em; ">
+50
+</td>
+<td style="text-align:center;width: 5em; ">
+0
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Wolfsburg
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+38
+</td>
+<td style="text-align:center;width: 5em; ">
+62
+</td>
+<td style="text-align:center;width: 5em; ">
+0
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Freiburg
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+37
+</td>
+<td style="text-align:center;width: 5em; ">
+63
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Hoffenheim
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+30
+</td>
+<td style="text-align:center;width: 5em; ">
+70
+</td>
+<td style="text-align:center;width: 5em; ">
+0
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+FC Koln
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+22
+</td>
+<td style="text-align:center;width: 5em; ">
+77
+</td>
+<td style="text-align:center;width: 5em; ">
+0
+</td>
+<td style="text-align:center;width: 5em; ">
+0
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Ein Frankfurt
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+12
+</td>
+<td style="text-align:center;width: 5em; ">
+86
+</td>
+<td style="text-align:center;width: 5em; ">
+1
+</td>
+<td style="text-align:center;width: 5em; ">
+0
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Union Berlin
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+6
+</td>
+<td style="text-align:center;width: 5em; ">
+91
+</td>
+<td style="text-align:center;width: 5em; ">
+2
+</td>
+<td style="text-align:center;width: 5em; ">
+0
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Augsburg
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+3
+</td>
+<td style="text-align:center;width: 5em; ">
+91
+</td>
+<td style="text-align:center;width: 5em; ">
+5
+</td>
+<td style="text-align:center;width: 5em; ">
+1
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Hertha
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+1
+</td>
+<td style="text-align:center;width: 5em; ">
+88
+</td>
+<td style="text-align:center;width: 5em; ">
+8
+</td>
+<td style="text-align:center;width: 5em; ">
+3
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Mainz
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+0
+</td>
+<td style="text-align:center;width: 5em; ">
+78
+</td>
+<td style="text-align:center;width: 5em; ">
+16
+</td>
+<td style="text-align:center;width: 5em; ">
+6
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Fortuna Dusseldorf
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+24
+</td>
+<td style="text-align:center;width: 5em; ">
+34
+</td>
+<td style="text-align:center;width: 5em; ">
+42
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Werder Bremen
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+15
+</td>
+<td style="text-align:center;width: 5em; ">
+22
+</td>
+<td style="text-align:center;width: 5em; ">
+63
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+Paderborn
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+</td>
+<td style="text-align:center;width: 5em; ">
+4
+</td>
+<td style="text-align:center;width: 5em; ">
+11
+</td>
+<td style="text-align:center;width: 5em; ">
+84
+</td>
+</tr>
+</tbody>
+</table>
+<p>We now see that Paderborns risk of immediate relegation is quite high. Also Werder Bremen has a roughly two in three chance of being relegated to second division directly.</p>
+<p>Collapsing the table also shows that many teams will finish in the middle of the table with very high probability. Union Berlin for example has a more than 9 out of 10 chance to end up mid table, which can be considered a big success for them.</p>
+<p>The CL spots are very likely going to the top four teams. Only Bayer Leverkusen might have a chance to snack a spot and send Gladbach into EL.</p>
+<p>The Europa League will be the most contested place in the table. More than a handful of teams have a realistic chance to grab one of these spots, but they will most likely go to Leverkusen, Schalke, and Wolfsburg, leaving Freiburg and Hoffenheim close behind.</p>
+<p>When the Bundesliga shut down due to the Covid-19 crisis, it was not really clear if the 2019 / 2020 season would be finished at all. I was asking myself, who would be in favor of stopping the season and who would be in favor of playing on? (Setting aside all valid health concerns, the monetary incentive to play a match, and any special rules like no-relegation in case of stopping the season, of course.) The question mainly boils down to: <em>If the season were to continue, would my team be expected to finish higher up the table, or lower?</em></p>
+<table class="table" style="margin-left: auto; margin-right: auto;">
+<caption>
+<span id="tab:table-relative">Table 3: </span>Predicted positional change
+</caption>
+<thead>
+<tr>
+<th style="text-align:right;">
+</th>
+<th style="text-align:left;">
+Team
+</th>
+<th style="text-align:right;">
+same
+</th>
+<th style="text-align:right;">
+lower
+</th>
+<th style="text-align:right;">
+higher
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:left;">
+Bayern Munich
+</td>
+<td style="text-align:right;width: 4em; ">
+66.1
+</td>
+<td style="text-align:right;width: 4em; ">
+33.9
+</td>
+<td style="text-align:right;width: 4em; ">
+0.0
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:left;">
+Dortmund
+</td>
+<td style="text-align:right;width: 4em; ">
+39.5
+</td>
+<td style="text-align:right;width: 4em; ">
+39.8
+</td>
+<td style="text-align:right;width: 4em; ">
+20.8
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:left;">
+RB Leipzig
+</td>
+<td style="text-align:right;width: 4em; ">
+35.1
+</td>
+<td style="text-align:right;width: 4em; ">
+26.7
+</td>
+<td style="text-align:right;width: 4em; ">
+38.2
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+4
+</td>
+<td style="text-align:left;">
+M’gladbach
+</td>
+<td style="text-align:right;width: 4em; ">
+41.5
+</td>
+<td style="text-align:right;width: 4em; ">
+28.4
+</td>
+<td style="text-align:right;width: 4em; ">
+30.1
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+5
+</td>
+<td style="text-align:left;">
+Leverkusen
+</td>
+<td style="text-align:right;width: 4em; ">
+57.0
+</td>
+<td style="text-align:right;width: 4em; ">
+4.8
+</td>
+<td style="text-align:right;width: 4em; ">
+38.2
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+6
+</td>
+<td style="text-align:left;">
+Schalke 04
+</td>
+<td style="text-align:right;width: 4em; ">
+26.9
+</td>
+<td style="text-align:right;width: 4em; ">
+70.9
+</td>
+<td style="text-align:right;width: 4em; ">
+2.2
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+7
+</td>
+<td style="text-align:left;">
+Wolfsburg
+</td>
+<td style="text-align:right;width: 4em; ">
+17.8
+</td>
+<td style="text-align:right;width: 4em; ">
+61.9
+</td>
+<td style="text-align:right;width: 4em; ">
+20.3
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+8
+</td>
+<td style="text-align:left;">
+Freiburg
+</td>
+<td style="text-align:right;width: 4em; ">
+16.2
+</td>
+<td style="text-align:right;width: 4em; ">
+46.9
+</td>
+<td style="text-align:right;width: 4em; ">
+36.8
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+9
+</td>
+<td style="text-align:left;">
+Hoffenheim
+</td>
+<td style="text-align:right;width: 4em; ">
+15.4
+</td>
+<td style="text-align:right;width: 4em; ">
+38.1
+</td>
+<td style="text-align:right;width: 4em; ">
+46.5
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+10
+</td>
+<td style="text-align:left;">
+FC Koln
+</td>
+<td style="text-align:right;width: 4em; ">
+14.9
+</td>
+<td style="text-align:right;width: 4em; ">
+35.2
+</td>
+<td style="text-align:right;width: 4em; ">
+49.9
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+11
+</td>
+<td style="text-align:left;">
+Union Berlin
+</td>
+<td style="text-align:right;width: 4em; ">
+14.8
+</td>
+<td style="text-align:right;width: 4em; ">
+53.8
+</td>
+<td style="text-align:right;width: 4em; ">
+31.4
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+12
+</td>
+<td style="text-align:left;">
+Ein Frankfurt
+</td>
+<td style="text-align:right;width: 4em; ">
+14.2
+</td>
+<td style="text-align:right;width: 4em; ">
+26.4
+</td>
+<td style="text-align:right;width: 4em; ">
+59.4
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+13
+</td>
+<td style="text-align:left;">
+Hertha
+</td>
+<td style="text-align:right;width: 4em; ">
+17.4
+</td>
+<td style="text-align:right;width: 4em; ">
+55.9
+</td>
+<td style="text-align:right;width: 4em; ">
+26.6
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+14
+</td>
+<td style="text-align:left;">
+Augsburg
+</td>
+<td style="text-align:right;width: 4em; ">
+16.5
+</td>
+<td style="text-align:right;width: 4em; ">
+18.4
+</td>
+<td style="text-align:right;width: 4em; ">
+65.1
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+15
+</td>
+<td style="text-align:left;">
+Mainz
+</td>
+<td style="text-align:right;width: 4em; ">
+28.0
+</td>
+<td style="text-align:right;width: 4em; ">
+21.9
+</td>
+<td style="text-align:right;width: 4em; ">
+50.1
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+16
+</td>
+<td style="text-align:left;">
+Fortuna Dusseldorf
+</td>
+<td style="text-align:right;width: 4em; ">
+33.9
+</td>
+<td style="text-align:right;width: 4em; ">
+41.9
+</td>
+<td style="text-align:right;width: 4em; ">
+24.2
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+17
+</td>
+<td style="text-align:left;">
+Werder Bremen
+</td>
+<td style="text-align:right;width: 4em; ">
+36.2
+</td>
+<td style="text-align:right;width: 4em; ">
+26.9
+</td>
+<td style="text-align:right;width: 4em; ">
+37.0
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+18
+</td>
+<td style="text-align:left;">
+Paderborn
+</td>
+<td style="text-align:right;width: 4em; ">
+60.0
+</td>
+<td style="text-align:right;width: 4em; ">
+0.0
+</td>
+<td style="text-align:right;width: 4em; ">
+40.0
+</td>
+</tr>
+</tbody>
+</table>
+<p>The ordering in this table is the same as above for the observed matches, the <em>same</em> column states the model based probability of finishing the season in the same spot as when it was paused. If the probability of finishing <em>higher</em> is greater than the probability of finishing <em>lower</em>, you should prefer playing the season until the end. If it’s the other way around, you should prefer stopping the season right now.</p>
+<p>There are some obvious choices here, for example Bayern Munich would be fine to end the season and win the title, while Paderborn has nothing to lose playing through the season and maybe preventing relegation. It might be not so obvious for Gladbach: Of course the probability is higher to finish in a better position, but there is a non-negligible risk of dropping to the fifth place and play EL instead of playing CL next season.</p>
+</div>
+<div id="wrapping-up" class="section level2">
+<h2>Wrapping up</h2>
+<p>In this post, we created a table of Bundesliga standings for all matches that have been played in this season so far. We transformed the data to be in long format to use it modeling the expected number of goals per team. We formulated and fitted a hierarchical Bayesian model for goal scoring. However, we did not consider defensive strengths of teams or any other additional information apart from home advantage. Finally, we used the models predictions to simulate how the Bundesliga could have played out and summarized the results in various ways.</p>
+<p>In the next part of this series, I will make the model a bit more interesting and incorporate defensive capabilities of teams. For this, we will write our very own Stan model code. So stay tuned!</p>
+</div>
